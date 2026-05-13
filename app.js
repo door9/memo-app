@@ -1107,9 +1107,11 @@ function renderFolderList() {
     const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
     html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
       <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
-      <span class="folder-actions">
+      <span class="folder-actions-left">
         <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
         <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
+      </span>
+      <span class="folder-actions-right">
         <span class="folder-del" data-del="${f.id}">&times;</span>
       </span>
     </div>`;
@@ -1135,9 +1137,8 @@ function renderFolderList() {
       longPressTimer = setTimeout(() => {
         didLongPress = true;
         // 다른 폴더의 아이콘 숨기기
-        folderList.querySelectorAll('.folder-actions.show').forEach((a) => a.classList.remove('show'));
-        const actions = el.querySelector('.folder-actions');
-        if (actions) actions.classList.toggle('show');
+        folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
+        el.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.toggle('show'));
       }, 500);
     }, { passive: true });
 
