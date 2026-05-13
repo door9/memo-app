@@ -507,8 +507,11 @@ html, body {
   .btn { font-size: 0.9rem; }
   .folder-item { font-size: 0.92rem; }
 
-  /* 모바일 에디터 툴바: 폴더 select 숨김 */
+  /* 모바일 에디터 툴바: 폴더 select 숨김, 제목 축소, 버튼 확대 */
   #memo-folder-select { display: none; }
+  #memo-title-input { flex: 0 1 auto; min-width: 0; width: 40%; padding: 6px 8px; }
+  #editor-toolbar { gap: 6px; }
+  .btn-icon { width: 42px; height: 42px; font-size: 1.15rem; }
 }
 
 /* Scrollbar */
