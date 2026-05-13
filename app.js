@@ -366,16 +366,18 @@ function mergeMemos(local, remote) {
       map.set(m.id, m);
     }
   }
+  const trashMemoIds = new Set(trash.filter((t) => t.type === 'memo').map((t) => t.data.id));
   return Array.from(map.values())
-    .filter((m) => !m.deleted)
+    .filter((m) => !m.deleted && !trashMemoIds.has(m.id))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function mergeFolders(local, remote) {
+  const trashFolderIds = new Set(trash.filter((t) => t.type === 'folder').map((t) => t.data.id));
   const map = new Map();
-  for (const f of remote) map.set(f.id, f);
+  for (const f of remote) { if (!trashFolderIds.has(f.id)) map.set(f.id, f); }
   for (const f of local) {
-    if (!map.has(f.id)) map.set(f.id, f);
+    if (!map.has(f.id) && !trashFolderIds.has(f.id)) map.set(f.id, f);
   }
   const result = Array.from(map.values());
   result.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
