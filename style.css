@@ -197,6 +197,19 @@ html, body {
 .folder-actions-left.show,
 .folder-actions-right.show { display: flex; }
 
+.folder-item--child {
+  padding-left: 32px;
+}
+
+.folder-actions-left .folder-move {
+  font-size: 0.6rem;
+  padding: 0 2px;
+  cursor: pointer;
+  line-height: 1;
+  color: var(--text2);
+}
+.folder-actions-left .folder-move:hover { color: var(--accent); }
+
 .folder-actions-left .folder-edit,
 .folder-actions-left .folder-lock {
   font-size: 0.7rem;
