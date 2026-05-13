@@ -4,8 +4,8 @@
   "description": "Personal memo app with Dropbox sync",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#16213e",
+  "background_color": "#fff1e5",
+  "theme_color": "#fff1e5",
   "icons": [
     {
       "src": "icon-192.png",
