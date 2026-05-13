@@ -501,8 +501,10 @@ html, body {
   #sidebar.open { transform: translateX(0); }
   #menu-toggle { display: flex; align-items: center; justify-content: center; }
   #sidebar-header { padding-top: 56px; }
-  #editor-toolbar { padding: 8px 12px; gap: 6px; }
-  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 44px; }
+  #editor-toolbar { padding: 8px 10px; gap: 6px; }
+  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; align-items: center; }
+  #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
+  #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
   #preview.visible { border-left: none; border-top: 1px solid var(--border); }
 
