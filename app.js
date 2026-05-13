@@ -851,6 +851,10 @@ function restoreFromTrash(index) {
   const item = trash[index];
   if (!item) return;
   if (item.type === 'memo') {
+    // 원래 폴더가 아직 존재하면 그 폴더로, 없으면 미분류로 복원
+    if (item.data.folder && !folders.some((f) => f.id === item.data.folder)) {
+      item.data.folder = null;
+    }
     memos.unshift(item.data);
   } else if (item.type === 'folder') {
     // 같은 이름의 폴더가 이미 있으면 이름 뒤에 (복원) 추가
