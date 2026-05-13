@@ -62,6 +62,7 @@ function init() {
     syncFromDropbox();
   });
   $('#btn-logout').addEventListener('click', confirmLogout);
+  $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-preview').addEventListener('click', togglePreview);
   $('#btn-delete').addEventListener('click', confirmDelete);
@@ -450,6 +451,31 @@ function confirmDelete() {
   });
 }
 
+// ── Favorite ──
+function toggleFavorite() {
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  memo.favorite = !memo.favorite;
+  memo.favoritedAt = memo.favorite ? Date.now() : null;
+  memo.updatedAt = Date.now();
+  updateFavButton(memo);
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
+  showToast(memo.favorite ? '즐겨찾기에 추가됨' : '즐겨찾기 해제됨');
+}
+
+function updateFavButton(memo) {
+  const btn = $('#btn-fav');
+  if (memo && memo.favorite) {
+    btn.textContent = '★';
+    btn.classList.add('fav-active');
+  } else {
+    btn.textContent = '☆';
+    btn.classList.remove('fav-active');
+  }
+}
+
 // ── Editor ──
 function showEditor(memo) {
   editorToolbar.style.display = 'flex';
@@ -460,6 +486,7 @@ function showEditor(memo) {
   undoStack = [];
   clearTimeout(undoTimer);
   updateFolderSelect(memo.folder);
+  updateFavButton(memo);
   updatePreview();
 }
 
@@ -671,13 +698,24 @@ function renderMemoList() {
     );
   }
 
+  // 폴더 보기일 때(전체 보기가 아닐 때) 즐겨찾기 상단 고정
+  if (currentFolder !== null && !query) {
+    const favs = filtered.filter((m) => m.favorite);
+    const normals = filtered.filter((m) => !m.favorite);
+    // 즐겨찾기끼리는 최근 즐겨찾기 지정순
+    favs.sort((a, b) => (b.favoritedAt || 0) - (a.favoritedAt || 0));
+    filtered = [...favs, ...normals];
+  }
+
   memoList.innerHTML = filtered
     .map((m) => {
       const title = m.title || '제목 없음';
       const date = formatDate(m.updatedAt);
       const active = m.id === currentId ? 'active' : '';
+      const favIcon = m.favorite ? '<span class="memo-item-fav">★</span>' : '';
       return `
         <div class="memo-item ${active}" data-id="${m.id}">
+          ${favIcon}
           <div class="memo-item-info">
             <div class="memo-item-title">${escapeHtml(title)}</div>
           </div>
