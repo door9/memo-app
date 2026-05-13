@@ -61,6 +61,9 @@ function init() {
     if (!accessToken) { loginDropbox(); return; }
     syncFromDropbox();
   });
+  $('#btn-logout').addEventListener('click', () => {
+    if (confirm('로그아웃 하시겠습니까?')) logout();
+  });
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-preview').addEventListener('click', togglePreview);
   $('#btn-delete').addEventListener('click', confirmDelete);
