@@ -14,6 +14,7 @@ let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
 let viewerMode = false;
 let saveTimer = null;
+const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
 let undoStack = [];
 let undoTimer = null;
 const UNDO_MAX = 50;
@@ -364,6 +365,121 @@ function loadLocalData() {
   } catch {}
 }
 
+// ── Folder Password ──
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function isFolderLocked(folderId) {
+  const f = folders.find((f) => f.id === folderId);
+  return f && f.password && !unlockedFolders.has(folderId);
+}
+
+function getLockedFolderIds() {
+  return folders.filter((f) => f.password && !unlockedFolders.has(f.id)).map((f) => f.id);
+}
+
+function showPasswordPrompt(folderId, onSuccess) {
+  const f = folders.find((f) => f.id === folderId);
+  if (!f) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>🔒 "${escapeHtml(f.name)}" 폴더 비밀번호</p>
+      <input type="password" id="pw-input" placeholder="비밀번호 입력" autofocus>
+      <div>
+        <button class="btn btn-secondary" id="pw-cancel">취소</button>
+        <button class="btn btn-primary" id="pw-ok">확인</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#pw-input');
+  input.focus();
+
+  const check = async () => {
+    const hash = await hashPassword(input.value);
+    if (hash === f.password) {
+      unlockedFolders.add(folderId);
+      overlay.remove();
+      if (onSuccess) onSuccess();
+    } else {
+      input.value = '';
+      input.placeholder = '비밀번호가 틀렸습니다';
+      input.classList.add('error');
+    }
+  };
+
+  overlay.querySelector('#pw-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#pw-ok').onclick = check;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function showSetPasswordDialog(folderId) {
+  const f = folders.find((f) => f.id === folderId);
+  if (!f) return;
+  const hasPassword = !!f.password;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>${hasPassword ? '🔒 비밀번호 변경/해제' : '🔓 비밀번호 설정'} — "${escapeHtml(f.name)}"</p>
+      ${hasPassword ? '<input type="password" id="pw-old" placeholder="현재 비밀번호" autofocus><br>' : ''}
+      <input type="password" id="pw-new" placeholder="새 비밀번호 (해제하려면 비워두세요)" ${hasPassword ? '' : 'autofocus'}>
+      <input type="password" id="pw-confirm" placeholder="새 비밀번호 확인">
+      <div>
+        <button class="btn btn-secondary" id="pw-cancel">취소</button>
+        <button class="btn btn-primary" id="pw-ok">${hasPassword ? '변경' : '설정'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  (overlay.querySelector('#pw-old') || overlay.querySelector('#pw-new')).focus();
+
+  const apply = async () => {
+    // 기존 비밀번호 확인
+    if (hasPassword) {
+      const oldInput = overlay.querySelector('#pw-old');
+      const oldHash = await hashPassword(oldInput.value);
+      if (oldHash !== f.password) {
+        oldInput.value = '';
+        oldInput.placeholder = '현재 비밀번호가 틀렸습니다';
+        oldInput.classList.add('error');
+        return;
+      }
+    }
+    const newPw = overlay.querySelector('#pw-new').value;
+    const confirmPw = overlay.querySelector('#pw-confirm').value;
+    if (newPw === '' && confirmPw === '') {
+      // 비밀번호 해제
+      f.password = null;
+      unlockedFolders.delete(folderId);
+      showToast('비밀번호가 해제되었습니다');
+    } else if (newPw !== confirmPw) {
+      overlay.querySelector('#pw-confirm').value = '';
+      overlay.querySelector('#pw-confirm').placeholder = '비밀번호가 일치하지 않습니다';
+      overlay.querySelector('#pw-confirm').classList.add('error');
+      return;
+    } else {
+      f.password = await hashPassword(newPw);
+      unlockedFolders.add(folderId);
+      showToast('비밀번호가 설정되었습니다');
+    }
+    saveLocalData();
+    renderAll();
+    scheduleSyncToDropbox();
+    overlay.remove();
+  };
+
+  overlay.querySelector('#pw-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#pw-ok').onclick = apply;
+  overlay.querySelector('#pw-confirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 // ── Folder CRUD ──
 function showFolderDialog() {
   const overlay = document.createElement('div');
@@ -675,15 +791,17 @@ function updateFolderToggleLabel() {
 }
 
 function renderFolderList() {
-  const allCount = memos.length;
+  const lockedIds = getLockedFolderIds();
+  const allCount = memos.filter((m) => !lockedIds.includes(m.folder)).length;
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
     <span class="folder-item-name">전체</span><span class="folder-count">${allCount}</span>
   </div>`;
 
   for (const f of folders) {
     const count = memos.filter((m) => m.folder === f.id).length;
+    const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
     html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
-      <span class="folder-item-name">${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-del" data-del="${f.id}">&times;</span>
+      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span><span class="folder-del" data-del="${f.id}">&times;</span>
     </div>`;
   }
 
@@ -703,10 +821,25 @@ function renderFolderList() {
         deleteFolder(e.target.dataset.del);
         return;
       }
+      if (e.target.classList.contains('folder-lock')) {
+        showSetPasswordDialog(e.target.dataset.lock);
+        return;
+      }
       const val = el.dataset.folder;
-      if (val === '__all__') currentFolder = null;
-      else if (val === '__none__') currentFolder = '__none__';
-      else currentFolder = val;
+      if (val === '__all__') { currentFolder = null; }
+      else if (val === '__none__') { currentFolder = '__none__'; }
+      else {
+        // 잠긴 폴더면 비밀번호 확인
+        if (isFolderLocked(val)) {
+          showPasswordPrompt(val, () => {
+            currentFolder = val;
+            renderAll();
+            $('#folder-dropdown').style.display = 'none';
+          });
+          return;
+        }
+        currentFolder = val;
+      }
       renderAll();
       $('#folder-dropdown').style.display = 'none';
     });
@@ -716,11 +849,15 @@ function renderFolderList() {
 function renderMemoList() {
   const query = searchBox.value.toLowerCase().trim();
   let filtered = memos;
+  const lockedIds = getLockedFolderIds();
 
   if (currentFolder === '__none__') {
     filtered = filtered.filter((m) => !m.folder);
   } else if (currentFolder) {
     filtered = filtered.filter((m) => m.folder === currentFolder);
+  } else {
+    // 전체 보기: 잠긴 폴더의 글 숨기기
+    filtered = filtered.filter((m) => !lockedIds.includes(m.folder));
   }
 
   if (query) {
