@@ -54,6 +54,19 @@ html, body {
   justify-content: space-between;
 }
 
+.btn-backup {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.btn-backup:hover { opacity: 1; }
+.btn-backup:disabled { opacity: 0.3; cursor: default; }
+
 #sync-status {
   font-size: 0.65rem;
   color: var(--text2);
