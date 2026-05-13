@@ -2,7 +2,7 @@
   "name": "My Memo",
   "short_name": "Memo",
   "description": "Personal memo app with Dropbox sync",
-  "start_url": "/",
+  "start_url": "/memo-app/",
   "display": "standalone",
   "background_color": "#fff1e5",
   "theme_color": "#fff1e5",
@@ -10,12 +10,14 @@
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
