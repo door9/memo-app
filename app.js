@@ -1099,21 +1099,26 @@ function renderFolderList() {
   const lockedIds = getLockedFolderIds();
   const allCount = memos.filter((m) => !lockedIds.includes(m.folder)).length;
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
-    <span class="folder-item-name">전체</span><span class="folder-count">${allCount}</span>
+    <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
   </div>`;
 
   for (const f of folders) {
     const count = memos.filter((m) => m.folder === f.id).length;
     const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
     html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
-      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span><span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span><span class="folder-del" data-del="${f.id}">&times;</span>
+      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
+      <span class="folder-actions">
+        <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
+        <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
+        <span class="folder-del" data-del="${f.id}">&times;</span>
+      </span>
     </div>`;
   }
 
   const noFolderCount = memos.filter((m) => !m.folder).length;
   if (folders.length > 0) {
     html += `<div class="folder-item ${currentFolder === '__none__' ? 'active' : ''}" data-folder="__none__">
-      <span class="folder-item-name">미분류</span><span class="folder-count">${noFolderCount}</span>
+      <span class="folder-item-name">미분류 <span class="folder-count">(${noFolderCount})</span></span>
     </div>`;
   }
 
