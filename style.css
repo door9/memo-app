@@ -150,6 +150,15 @@ html, body {
   margin-right: 8px;
 }
 
+.folder-item .folder-lock {
+  display: none;
+  font-size: 0.7rem;
+  padding: 0 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+.folder-item:hover .folder-lock { display: inline; }
+
 .folder-item .folder-del {
   display: none;
   font-size: 0.8rem;
@@ -409,6 +418,20 @@ html, body {
   margin-bottom: 16px;
 }
 .modal-box input[type="text"]:focus { border-color: var(--accent); }
+.modal-box input[type="password"] {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  margin-bottom: 8px;
+}
+.modal-box input[type="password"]:focus { border-color: var(--accent); }
+.modal-box input.error { border-color: var(--accent); }
+.modal-box input.error::placeholder { color: var(--accent); }
 
 /* legacy compat */
 .delete-confirm { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
