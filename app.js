@@ -12,6 +12,9 @@ let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
 let previewVisible = false;
 let saveTimer = null;
+let undoStack = [];
+let undoTimer = null;
+const UNDO_MAX = 50;
 
 // ── DOM ──
 const $ = (s) => document.querySelector(s);
@@ -55,6 +58,7 @@ function init() {
     if (!accessToken) { loginDropbox(); return; }
     syncFromDropbox();
   });
+  $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-preview').addEventListener('click', togglePreview);
   $('#btn-delete').addEventListener('click', confirmDelete);
   $('#menu-toggle').addEventListener('click', () => {
@@ -339,6 +343,8 @@ function showEditor(memo) {
   emptyState.style.display = 'none';
   titleInput.value = memo.title;
   editor.value = memo.content;
+  undoStack = [];
+  clearTimeout(undoTimer);
   updateFolderSelect(memo.folder);
   updatePreview();
 }
@@ -371,6 +377,7 @@ function onFolderSelectChange() {
 function onEditorInput() {
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
+  scheduleUndoSnapshot(memo);
   memo.content = editor.value;
   memo.updatedAt = Date.now();
   updatePreview();
@@ -410,6 +417,51 @@ function scheduleSyncToDropbox() {
       setSyncStatus('error', '저장 실패');
     }
   }, 3000);
+}
+
+// ── Undo ──
+let lastSavedContent = '';
+
+function scheduleUndoSnapshot(memo) {
+  if (!undoTimer) {
+    // 타이핑 시작 시 현재 상태를 즉시 저장
+    if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== memo.content) {
+      undoStack.push(memo.content);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+    }
+  }
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    // 타이핑 멈춘 후 1초 뒤 현재 상태도 저장
+    const cur = editor.value;
+    if (undoStack[undoStack.length - 1] !== cur) {
+      undoStack.push(cur);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+    }
+    undoTimer = null;
+  }, 1000);
+}
+
+function performUndo() {
+  if (undoStack.length === 0) {
+    showToast('되돌릴 내용이 없습니다');
+    return;
+  }
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+
+  // 현재 내용과 같으면 한 단계 더 뒤로
+  let prev = undoStack.pop();
+  if (prev === editor.value && undoStack.length > 0) {
+    prev = undoStack.pop();
+  }
+
+  editor.value = prev;
+  memo.content = prev;
+  memo.updatedAt = Date.now();
+  updatePreview();
+  scheduleAutoSave();
+  showToast('되돌리기 완료');
 }
 
 // ── Preview ──
