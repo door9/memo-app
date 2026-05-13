@@ -878,6 +878,7 @@ function deleteFolder(id) {
 
 // ── Memo CRUD ──
 function createMemo() {
+  cleanupEmptyMemo();
   const memo = {
     id: crypto.randomUUID(),
     title: '',
@@ -1087,12 +1088,24 @@ function showEditor(memo) {
 }
 
 function hideEditor() {
+  cleanupEmptyMemo();
   editorToolbar.style.display = 'none';
   editorContainer.style.display = 'none';
   emptyState.style.display = 'flex';
 }
 
+function cleanupEmptyMemo() {
+  if (!currentId) return;
+  const memo = memos.find((m) => m.id === currentId);
+  if (memo && !memo.title.trim() && !memo.content.trim()) {
+    memos = memos.filter((m) => m.id !== currentId);
+    currentId = null;
+    saveLocalData();
+  }
+}
+
 function loadMemoInEditor(memo) {
+  cleanupEmptyMemo();
   currentId = memo.id;
   showEditor(memo);
   renderMemoList();
