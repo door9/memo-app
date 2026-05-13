@@ -1,4 +1,4 @@
-const CACHE_NAME = 'memo-v48';
+const CACHE_NAME = 'memo-v49';
 const ASSETS = [
   '/memo-app/',
   '/memo-app/index.html',
