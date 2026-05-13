@@ -19,7 +19,7 @@ let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
 let masterPasswordHash = null;
 let undoStack = [];
-let undoTimer = null;
+let redoStack = [];
 const UNDO_MAX = 50;
 
 // ── DOM ──
@@ -81,6 +81,7 @@ function init() {
   $('#btn-trash').addEventListener('click', showTrashView);
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
+  $('#btn-redo').addEventListener('click', performRedo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
   $('#btn-delete').addEventListener('click', confirmDelete);
   $('#menu-toggle').addEventListener('click', () => {
@@ -1120,7 +1121,7 @@ function showEditor(memo) {
   titleInput.value = memo.title;
   editor.value = memo.content;
   undoStack = [];
-  clearTimeout(undoTimer);
+  redoStack = [];
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
   applyViewerMode(!!memo.viewerMode);
@@ -1234,7 +1235,7 @@ function applyViewerMode(on) {
   $('#btn-viewer').classList.toggle('active', on);
 }
 
-// ── Undo ──
+// ── Undo / Redo ──
 let lastSavedContent = '';
 
 function scheduleUndoSnapshot(memo) {
@@ -1242,6 +1243,7 @@ function scheduleUndoSnapshot(memo) {
   if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== cur) {
     undoStack.push(cur);
     if (undoStack.length > UNDO_MAX) undoStack.shift();
+    redoStack = []; // 새 입력 시 redo 이력 초기화
   }
 }
 
@@ -1252,6 +1254,9 @@ function performUndo() {
   }
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
+
+  // 현재 상태를 redo 스택에 저장
+  redoStack.push(editor.value);
 
   // 현재 내용과 같으면 한 단계 더 뒤로
   let prev = undoStack.pop();
@@ -1264,6 +1269,29 @@ function performUndo() {
   memo.updatedAt = Date.now();
   scheduleAutoSave();
   showToast('되돌리기 완료');
+}
+
+function performRedo() {
+  if (redoStack.length === 0) {
+    showToast('되살릴 내용이 없습니다');
+    return;
+  }
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+
+  // 현재 상태를 undo 스택에 저장
+  undoStack.push(editor.value);
+
+  let next = redoStack.pop();
+  if (next === editor.value && redoStack.length > 0) {
+    next = redoStack.pop();
+  }
+
+  editor.value = next;
+  memo.content = next;
+  memo.updatedAt = Date.now();
+  scheduleAutoSave();
+  showToast('되살리기 완료');
 }
 
 // ── Render ──
