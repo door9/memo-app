@@ -186,7 +186,7 @@ html, body {
 .folder-actions-right {
   display: none;
   align-items: center;
-  gap: 3px;
+  gap: 2.5px;
   flex-shrink: 0;
 }
 .folder-actions-left { margin-left: 4px; }
