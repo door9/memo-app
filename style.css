@@ -226,6 +226,33 @@ html, body {
 }
 .folder-actions-right .folder-del:hover { color: var(--accent); }
 
+.folder-dormant-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text2);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background 0.15s;
+}
+.folder-dormant-toggle:hover { background: var(--bg2); color: var(--text); }
+.dormant-arrow { font-size: 0.6rem; color: var(--text2); }
+
+.folder-dormant-list {
+  background: var(--bg);
+}
+
+.folder-actions-left .folder-dormant {
+  font-size: 0.7rem;
+  padding: 0 3px;
+  cursor: pointer;
+  line-height: 1;
+}
+
 .folder-add-btn {
   width: 100%;
   padding: 7px 14px;
