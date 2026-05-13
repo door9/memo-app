@@ -656,6 +656,38 @@ function showFolderDialog() {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
+function showRenameFolderDialog(id) {
+  const folder = folders.find((f) => f.id === id);
+  if (!folder) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>폴더 이름 수정</p>
+      <input type="text" id="rename-folder-input" value="${escapeHtml(folder.name)}" placeholder="폴더 이름">
+      <button class="btn btn-secondary" id="rename-cancel">취소</button>
+      <button class="btn btn-primary" id="rename-ok">확인</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#rename-folder-input');
+  input.focus();
+  input.select();
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') overlay.querySelector('#rename-ok').click(); });
+  overlay.querySelector('#rename-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#rename-ok').onclick = () => {
+    const newName = input.value.trim();
+    if (!newName) return;
+    folder.name = newName;
+    saveLocalData();
+    renderAll();
+    scheduleSyncToDropbox();
+    overlay.remove();
+    showToast('폴더 이름이 변경되었습니다');
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 function confirmDeleteFolder(id) {
   const folder = folders.find((f) => f.id === id);
   if (!folder) return;
@@ -1074,7 +1106,7 @@ function renderFolderList() {
     const count = memos.filter((m) => m.folder === f.id).length;
     const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
     html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
-      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span><span class="folder-del" data-del="${f.id}">&times;</span>
+      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span><span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span><span class="folder-del" data-del="${f.id}">&times;</span>
     </div>`;
   }
 
@@ -1092,6 +1124,10 @@ function renderFolderList() {
     el.addEventListener('click', (e) => {
       if (e.target.classList.contains('folder-del')) {
         confirmDeleteFolder(e.target.dataset.del);
+        return;
+      }
+      if (e.target.classList.contains('folder-edit')) {
+        showRenameFolderDialog(e.target.dataset.edit);
         return;
       }
       if (e.target.classList.contains('folder-lock')) {

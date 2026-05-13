@@ -179,6 +179,15 @@ html, body {
 }
 .folder-item:hover .folder-lock { display: inline; }
 
+.folder-item .folder-edit {
+  display: none;
+  font-size: 0.7rem;
+  padding: 0 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+.folder-item:hover .folder-edit { display: inline; }
+
 .folder-item .folder-del {
   display: none;
   font-size: 0.8rem;
