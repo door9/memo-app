@@ -1,6 +1,8 @@
 // ── Config ──
 const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun';
 const DROPBOX_FILE = '/memo-app/memos.json';
+const BACKUP_DIR = '/memo-app/backups';
+const BACKUP_MAX = 10;
 const REDIRECT_URI = location.origin + location.pathname;
 
 // ── State ──
@@ -52,6 +54,7 @@ function init() {
     showApp();
   });
   $('#btn-new').addEventListener('click', createMemo);
+  $('#btn-backup').addEventListener('click', createBackup);
   $('#btn-folder-toggle').addEventListener('click', toggleFolderDropdown);
   $('#btn-folder-add').addEventListener('click', showFolderDialog);
   $('#btn-sync').addEventListener('click', () => {
@@ -94,7 +97,7 @@ function loginDropbox() {
     redirect_uri: REDIRECT_URI,
     response_type: 'token',
     token_access_type: 'legacy',
-    scope: 'files.content.read files.content.write',
+    scope: 'files.content.read files.content.write files.metadata.read files.metadata.write',
     state,
   });
   location.href = 'https://www.dropbox.com/oauth2/authorize?' + params;
@@ -162,6 +165,98 @@ async function dbxDownload() {
   }
   if (!res.ok) throw new Error('download failed: ' + res.status);
   return res.json();
+}
+
+// ── Backup ──
+async function createBackup() {
+  if (!accessToken) {
+    showToast('Dropbox에 로그인 후 이용하세요');
+    return;
+  }
+  const btn = $('#btn-backup');
+  btn.disabled = true;
+  showToast('백업 중...');
+
+  try {
+    // 백업 파일명: 날짜시간
+    const now = new Date();
+    const ts = now.getFullYear()
+      + String(now.getMonth() + 1).padStart(2, '0')
+      + String(now.getDate()).padStart(2, '0')
+      + '_' + String(now.getHours()).padStart(2, '0')
+      + String(now.getMinutes()).padStart(2, '0')
+      + String(now.getSeconds()).padStart(2, '0');
+    const backupPath = BACKUP_DIR + '/backup_' + ts + '.json';
+    const data = JSON.stringify({ memos, folders }, null, 2);
+
+    // 백업 파일 업로드
+    await dbxUploadTo(backupPath, data);
+
+    // 기존 백업 파일 목록 조회 후 오래된 것 삭제
+    await pruneBackups();
+
+    showToast('백업 완료!');
+  } catch (e) {
+    console.error('Backup error:', e);
+    showToast('백업 실패');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function dbxUploadTo(path, content) {
+  const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/octet-stream',
+      'Dropbox-API-Arg': JSON.stringify({ path, mode: 'add', mute: true }),
+    },
+    body: content,
+  });
+  if (res.status === 401) { logout(); throw new Error('auth expired'); }
+  if (!res.ok) throw new Error('upload failed: ' + res.status);
+  return res.json();
+}
+
+async function dbxListFolder(path) {
+  const res = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path, recursive: false }),
+  });
+  if (res.status === 409 || res.status === 404) return [];
+  if (!res.ok) throw new Error('list failed: ' + res.status);
+  const data = await res.json();
+  return data.entries || [];
+}
+
+async function dbxDelete(path) {
+  const res = await fetch('https://api.dropboxapi.com/2/files/delete_v2', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) throw new Error('delete failed: ' + res.status);
+}
+
+async function pruneBackups() {
+  const entries = await dbxListFolder(BACKUP_DIR);
+  const backups = entries
+    .filter((e) => e['.tag'] === 'file' && e.name.startsWith('backup_'))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // 10개 초과 시 오래된 것부터 삭제
+  while (backups.length > BACKUP_MAX) {
+    const old = backups.shift();
+    await dbxDelete(old.path_lower);
+  }
 }
 
 // ── Sync ──

@@ -20,7 +20,10 @@
     <div id="sidebar-header">
       <h1>
         My Memo
-        <span id="sync-status">오프라인</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <button class="btn-backup" id="btn-backup" title="백업">💾</button>
+          <span id="sync-status">오프라인</span>
+        </span>
       </h1>
       <input type="text" id="search-box" placeholder="메모 검색...">
       <div id="sidebar-actions">
