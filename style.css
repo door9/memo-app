@@ -229,6 +229,13 @@ html, body {
   flex-shrink: 0;
 }
 
+.memo-item-fav {
+  font-size: 0.7rem;
+  color: #e6a817;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
 /* Folder select in editor toolbar */
 #memo-folder-select {
   padding: 6px 8px;
@@ -289,6 +296,7 @@ html, body {
 }
 .btn-icon:hover { background: var(--bg2); }
 .btn-icon.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-icon.fav-active { color: #e6a817; background: var(--bg); border-color: var(--border); }
 
 #editor-container {
   flex: 1;
