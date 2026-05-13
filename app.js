@@ -63,6 +63,9 @@ function init() {
 
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
+  titleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
+  });
   folderSelect.addEventListener('change', onFolderSelectChange);
   searchBox.addEventListener('input', renderMemoList);
 
