@@ -15,6 +15,7 @@ let isOnline = !!accessToken;
 let viewerMode = false;
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
+let masterPasswordHash = null;
 let undoStack = [];
 let undoTimer = null;
 const UNDO_MAX = 50;
@@ -66,6 +67,8 @@ function init() {
     syncFromDropbox();
   });
   $('#btn-logout').addEventListener('click', confirmLogout);
+  $('#btn-master-pw').addEventListener('click', showMasterPasswordDialog);
+  $('#btn-master-unlock').addEventListener('click', showMasterUnlockPrompt);
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
@@ -223,7 +226,9 @@ async function createBackup() {
       + String(now.getMinutes()).padStart(2, '0')
       + String(now.getSeconds()).padStart(2, '0');
     const backupPath = BACKUP_DIR + '/backup_' + ts + '.json';
-    const data = JSON.stringify({ memos, folders }, null, 2);
+    const obj = { memos, folders };
+    if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
+    const data = JSON.stringify(obj, null, 2);
 
     // 백업 파일 업로드
     await dbxUploadTo(backupPath, data);
@@ -304,6 +309,7 @@ async function syncFromDropbox() {
     if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
       if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
       if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+      if (remote.masterPassword && !masterPasswordHash) masterPasswordHash = remote.masterPassword;
     } else if (remote && Array.isArray(remote)) {
       memos = mergeMemos(memos, remote);
     }
@@ -323,7 +329,9 @@ async function syncFromDropbox() {
 
 async function syncToDropbox() {
   if (!accessToken) return;
-  const data = JSON.stringify({ memos, folders }, null, 2);
+  const obj = { memos, folders };
+  if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
+  const data = JSON.stringify(obj, null, 2);
   await dbxUpload(data);
 }
 
@@ -354,6 +362,8 @@ function mergeFolders(local, remote) {
 function saveLocalData() {
   localStorage.setItem('memos', JSON.stringify(memos));
   localStorage.setItem('folders', JSON.stringify(folders));
+  if (masterPasswordHash) localStorage.setItem('master_pw', masterPasswordHash);
+  else localStorage.removeItem('master_pw');
 }
 
 function loadLocalData() {
@@ -362,6 +372,7 @@ function loadLocalData() {
     if (md) memos = JSON.parse(md);
     const fd = localStorage.getItem('folders');
     if (fd) folders = JSON.parse(fd);
+    masterPasswordHash = localStorage.getItem('master_pw') || null;
   } catch {}
 }
 
@@ -401,7 +412,7 @@ function showPasswordPrompt(folderId, onSuccess) {
 
   const check = async () => {
     const hash = await hashPassword(input.value);
-    if (hash === f.password) {
+    if (hash === f.password || (masterPasswordHash && hash === masterPasswordHash)) {
       unlockedFolders.add(folderId);
       overlay.remove();
       if (onSuccess) onSuccess();
@@ -440,11 +451,11 @@ function showSetPasswordDialog(folderId) {
   (overlay.querySelector('#pw-old') || overlay.querySelector('#pw-new')).focus();
 
   const apply = async () => {
-    // 기존 비밀번호 확인
+    // 기존 비밀번호 확인 (마스터 비밀번호도 허용)
     if (hasPassword) {
       const oldInput = overlay.querySelector('#pw-old');
       const oldHash = await hashPassword(oldInput.value);
-      if (oldHash !== f.password) {
+      if (oldHash !== f.password && !(masterPasswordHash && oldHash === masterPasswordHash)) {
         oldInput.value = '';
         oldInput.placeholder = '현재 비밀번호가 틀렸습니다';
         oldInput.classList.add('error');
@@ -477,6 +488,108 @@ function showSetPasswordDialog(folderId) {
   overlay.querySelector('#pw-cancel').onclick = () => overlay.remove();
   overlay.querySelector('#pw-ok').onclick = apply;
   overlay.querySelector('#pw-confirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ── Master Password ──
+function showMasterPasswordDialog() {
+  const hasMaster = !!masterPasswordHash;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>${hasMaster ? '🔐 마스터 비밀번호 변경/해제' : '🔐 마스터 비밀번호 설정'}</p>
+      ${hasMaster ? '<input type="password" id="mp-old" placeholder="현재 마스터 비밀번호" autofocus>' : ''}
+      <input type="password" id="mp-new" placeholder="새 마스터 비밀번호 (해제하려면 비워두세요)" ${hasMaster ? '' : 'autofocus'}>
+      <input type="password" id="mp-confirm" placeholder="새 마스터 비밀번호 확인">
+      <div>
+        <button class="btn btn-secondary" id="mp-cancel">취소</button>
+        <button class="btn btn-primary" id="mp-ok">${hasMaster ? '변경' : '설정'}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  (overlay.querySelector('#mp-old') || overlay.querySelector('#mp-new')).focus();
+
+  const apply = async () => {
+    if (hasMaster) {
+      const oldInput = overlay.querySelector('#mp-old');
+      const oldHash = await hashPassword(oldInput.value);
+      if (oldHash !== masterPasswordHash) {
+        oldInput.value = '';
+        oldInput.placeholder = '현재 비밀번호가 틀렸습니다';
+        oldInput.classList.add('error');
+        return;
+      }
+    }
+    const newPw = overlay.querySelector('#mp-new').value;
+    const confirmPw = overlay.querySelector('#mp-confirm').value;
+    if (newPw === '' && confirmPw === '') {
+      masterPasswordHash = null;
+      showToast('마스터 비밀번호가 해제되었습니다');
+    } else if (newPw !== confirmPw) {
+      overlay.querySelector('#mp-confirm').value = '';
+      overlay.querySelector('#mp-confirm').placeholder = '비밀번호가 일치하지 않습니다';
+      overlay.querySelector('#mp-confirm').classList.add('error');
+      return;
+    } else {
+      masterPasswordHash = await hashPassword(newPw);
+      showToast('마스터 비밀번호가 설정되었습니다');
+    }
+    saveLocalData();
+    scheduleSyncToDropbox();
+    overlay.remove();
+  };
+
+  overlay.querySelector('#mp-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#mp-ok').onclick = apply;
+  overlay.querySelector('#mp-confirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function showMasterUnlockPrompt() {
+  if (!masterPasswordHash) {
+    showToast('마스터 비밀번호가 설정되지 않았습니다');
+    return;
+  }
+  const lockedIds = getLockedFolderIds();
+  if (lockedIds.length === 0) {
+    showToast('잠긴 폴더가 없습니다');
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>🔐 마스터 비밀번호로 전체 잠금 해제</p>
+      <input type="password" id="mu-input" placeholder="마스터 비밀번호" autofocus>
+      <div>
+        <button class="btn btn-secondary" id="mu-cancel">취소</button>
+        <button class="btn btn-primary" id="mu-ok">해제</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#mu-input');
+  input.focus();
+
+  const check = async () => {
+    const hash = await hashPassword(input.value);
+    if (hash === masterPasswordHash) {
+      lockedIds.forEach((id) => unlockedFolders.add(id));
+      overlay.remove();
+      renderAll();
+      showToast('모든 폴더 잠금이 해제되었습니다');
+    } else {
+      input.value = '';
+      input.placeholder = '비밀번호가 틀렸습니다';
+      input.classList.add('error');
+    }
+  };
+
+  overlay.querySelector('#mu-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#mu-ok').onclick = check;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') check(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 

@@ -77,8 +77,14 @@ html, body {
 #sync-status.synced { color: var(--success); }
 #sync-status.error { color: var(--accent); }
 
+#search-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 #search-box {
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -90,6 +96,18 @@ html, body {
 }
 #search-box:focus { border-color: var(--accent); }
 #search-box::placeholder { color: var(--text2); }
+
+.btn-search-key {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  color: var(--text2);
+  transition: opacity 0.2s;
+}
+.btn-search-key:hover { opacity: 0.7; }
 
 #sidebar-actions {
   display: flex;
@@ -194,6 +212,9 @@ html, body {
 #sidebar-footer {
   padding: 8px 12px;
   border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 #sidebar-footer button {
   background: none;
