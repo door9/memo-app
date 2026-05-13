@@ -106,48 +106,60 @@ html, body {
   border: 1px solid var(--border);
 }
 
-/* Folder list */
-#folder-list {
+/* Folder dropdown */
+.folder-dropdown {
   border-bottom: 1px solid var(--border);
-  padding: 4px 8px;
+  background: var(--card);
+}
+
+#folder-list {
+  padding: 4px 0;
+}
+
+.folder-item {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-#folder-list:empty { display: none; }
-
-.folder-chip {
-  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  background: var(--border);
-  border: 1px solid transparent;
-  border-radius: 14px;
+  padding: 7px 14px;
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   color: var(--text2);
-  transition: all 0.15s;
-  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.folder-chip:hover { color: var(--text); background: var(--bg2); }
-.folder-chip.active { color: var(--accent); border-color: var(--accent); background: var(--bg); font-weight: 600; }
+.folder-item:hover { background: var(--bg2); color: var(--text); }
+.folder-item.active { color: var(--accent); font-weight: 600; background: var(--bg); }
 
-.folder-chip .folder-count {
-  background: rgba(255,255,255,0.1);
-  padding: 0 5px;
-  border-radius: 8px;
-  font-size: 0.65rem;
-}
+.folder-item-name { flex: 1; }
 
-.folder-chip .folder-del {
-  display: none;
-  margin-left: 2px;
+.folder-item .folder-count {
   font-size: 0.7rem;
-  opacity: 0.5;
+  color: var(--text2);
+  margin-right: 8px;
 }
-.folder-chip:hover .folder-del { display: inline; }
-.folder-chip .folder-del:hover { opacity: 1; color: var(--accent); }
+
+.folder-item .folder-del {
+  display: none;
+  font-size: 0.8rem;
+  color: var(--text2);
+  padding: 0 4px;
+  line-height: 1;
+}
+.folder-item:hover .folder-del { display: inline; }
+.folder-item .folder-del:hover { color: var(--accent); }
+
+.folder-add-btn {
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.folder-add-btn:hover { background: var(--bg2); color: var(--text); }
 
 /* Memo list */
 #memo-list {
