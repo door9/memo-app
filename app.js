@@ -1126,7 +1126,32 @@ function renderFolderList() {
   updateFolderToggleLabel();
 
   folderList.querySelectorAll('.folder-item').forEach((el) => {
+    // Long press for mobile: show action icons
+    let longPressTimer = null;
+    let didLongPress = false;
+
+    el.addEventListener('touchstart', (e) => {
+      didLongPress = false;
+      longPressTimer = setTimeout(() => {
+        didLongPress = true;
+        // 다른 폴더의 아이콘 숨기기
+        folderList.querySelectorAll('.folder-actions.show').forEach((a) => a.classList.remove('show'));
+        const actions = el.querySelector('.folder-actions');
+        if (actions) actions.classList.toggle('show');
+      }, 500);
+    }, { passive: true });
+
+    el.addEventListener('touchend', () => {
+      clearTimeout(longPressTimer);
+    });
+
+    el.addEventListener('touchmove', () => {
+      clearTimeout(longPressTimer);
+    });
+
     el.addEventListener('click', (e) => {
+      if (didLongPress) { didLongPress = false; return; }
+
       if (e.target.classList.contains('folder-del')) {
         confirmDeleteFolder(e.target.dataset.del);
         return;
