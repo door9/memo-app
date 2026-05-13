@@ -41,6 +41,13 @@ const emptyState = $('#empty-state');
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
+  // 모바일 세로 모드 고정
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('portrait').catch(() => {});
+    }
+  } catch (e) {}
+
   handleOAuthCallback();
   loadLocalData();
 
