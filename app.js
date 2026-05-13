@@ -377,7 +377,9 @@ function mergeFolders(local, remote) {
   for (const f of local) {
     if (!map.has(f.id)) map.set(f.id, f);
   }
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  const result = Array.from(map.values());
+  result.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
+  return result.sort(sortBySortOrder);
 }
 
 function mergeTrash(local, remote) {
@@ -408,7 +410,31 @@ function loadLocalData() {
     const td = localStorage.getItem('trash');
     if (td) trash = JSON.parse(td);
     masterPasswordHash = localStorage.getItem('master_pw') || null;
+    // 마이그레이션: sortOrder 없는 폴더에 순번 부여
+    folders.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
   } catch {}
+}
+
+function sortBySortOrder(a, b) { return (a.sortOrder ?? 999) - (b.sortOrder ?? 999); }
+
+function getChildFolders(parentId) {
+  return folders.filter((f) => f.parentId === parentId).sort(sortBySortOrder);
+}
+
+function getSiblingFolders(folderId) {
+  const f = folders.find((x) => x.id === folderId);
+  if (!f) return [];
+  return folders.filter((x) => (x.parentId || null) === (f.parentId || null)).sort(sortBySortOrder);
+}
+
+function nextSortOrder(parentId) {
+  const siblings = folders.filter((f) => (f.parentId || null) === (parentId || null));
+  return siblings.length === 0 ? 0 : Math.max(...siblings.map((f) => f.sortOrder ?? 0)) + 1;
+}
+
+function getFolderMemoCount(folderId) {
+  const childIds = getChildFolders(folderId).map((f) => f.id);
+  return memos.filter((m) => m.folder === folderId || childIds.includes(m.folder)).length;
 }
 
 // ── Folder Password ──
@@ -419,11 +445,14 @@ async function hashPassword(pw) {
 
 function isFolderLocked(folderId) {
   const f = folders.find((f) => f.id === folderId);
-  return f && f.password && !unlockedFolders.has(folderId);
+  if (!f) return false;
+  if (f.password && !unlockedFolders.has(folderId)) return true;
+  if (f.parentId) return isFolderLocked(f.parentId);
+  return false;
 }
 
 function getLockedFolderIds() {
-  return folders.filter((f) => f.password && !unlockedFolders.has(f.id)).map((f) => f.id);
+  return folders.filter((f) => isFolderLocked(f.id)).map((f) => f.id);
 }
 
 function showPasswordPrompt(folderId, onSuccess) {
@@ -649,7 +678,13 @@ function showFolderDialog() {
   const create = () => {
     const name = input.value.trim();
     if (name) {
-      folders.push({ id: crypto.randomUUID(), name });
+      // 현재 폴더가 최상위 폴더이면 하위 폴더로 생성, 아니면 최상위로
+      let parentId = null;
+      if (currentFolder && currentFolder !== '__none__') {
+        const cur = folders.find((f) => f.id === currentFolder);
+        if (cur && !cur.parentId) parentId = cur.id; // 최상위 폴더 아래에만 하위 생성
+      }
+      folders.push({ id: crypto.randomUUID(), name, parentId, sortOrder: nextSortOrder(parentId) });
       saveLocalData();
       renderAll();
       scheduleSyncToDropbox();
@@ -661,6 +696,30 @@ function showFolderDialog() {
   overlay.querySelector('#folder-ok').onclick = create;
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') create(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function moveFolderUp(folderId) {
+  const siblings = getSiblingFolders(folderId);
+  const idx = siblings.findIndex((f) => f.id === folderId);
+  if (idx <= 0) return;
+  const temp = siblings[idx].sortOrder;
+  siblings[idx].sortOrder = siblings[idx - 1].sortOrder;
+  siblings[idx - 1].sortOrder = temp;
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
+}
+
+function moveFolderDown(folderId) {
+  const siblings = getSiblingFolders(folderId);
+  const idx = siblings.findIndex((f) => f.id === folderId);
+  if (idx < 0 || idx >= siblings.length - 1) return;
+  const temp = siblings[idx].sortOrder;
+  siblings[idx].sortOrder = siblings[idx + 1].sortOrder;
+  siblings[idx + 1].sortOrder = temp;
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
 }
 
 function showRenameFolderDialog(id) {
@@ -698,13 +757,16 @@ function showRenameFolderDialog(id) {
 function confirmDeleteFolder(id) {
   const folder = folders.find((f) => f.id === id);
   if (!folder) return;
-  const folderMemos = memos.filter((m) => m.folder === id);
+  const childFolders = getChildFolders(id);
+  const allIds = [id, ...childFolders.map((f) => f.id)];
+  const folderMemos = memos.filter((m) => allIds.includes(m.folder));
+  const childNote = childFolders.length > 0 ? '하위 폴더 ' + childFolders.length + '개, ' : '';
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box">
-      <p>"${escapeHtml(folder.name)}" 폴더를 삭제할까요?${folderMemos.length > 0 ? '<br><span style="font-size:0.85rem;color:var(--text2)">폴더 내 메모 ' + folderMemos.length + '개도 휴지통으로 이동합니다.</span>' : ''}</p>
+      <p>"${escapeHtml(folder.name)}" 폴더를 삭제할까요?${(folderMemos.length > 0 || childFolders.length > 0) ? '<br><span style="font-size:0.85rem;color:var(--text2)">' + childNote + '메모 ' + folderMemos.length + '개도 휴지통으로 이동합니다.</span>' : ''}</p>
       <button class="btn btn-secondary" id="fdel-cancel">취소</button>
       <button class="btn btn-primary" id="fdel-ok">삭제</button>
     </div>
@@ -720,18 +782,24 @@ function confirmDeleteFolder(id) {
 
 function deleteFolder(id) {
   const folder = folders.find((f) => f.id === id);
-  // 폴더 내 메모들을 휴지통으로 이동
-  const folderMemos = memos.filter((m) => m.folder === id);
+  const childFolders = getChildFolders(id);
+  const allIds = [id, ...childFolders.map((f) => f.id)];
+  // 폴더 + 하위 폴더 내 메모들을 휴지통으로 이동
+  const folderMemos = memos.filter((m) => allIds.includes(m.folder));
   for (const m of folderMemos) {
     trash.push({ type: 'memo', data: { ...m }, deletedAt: Date.now() });
   }
-  memos = memos.filter((m) => m.folder !== id);
+  memos = memos.filter((m) => !allIds.includes(m.folder));
+  // 하위 폴더 휴지통으로
+  for (const cf of childFolders) {
+    trash.push({ type: 'folder', data: { ...cf }, deletedAt: Date.now() });
+  }
   // 폴더 자체도 휴지통으로
   if (folder) {
     trash.push({ type: 'folder', data: { ...folder }, deletedAt: Date.now() });
   }
-  folders = folders.filter((f) => f.id !== id);
-  if (currentFolder === id) currentFolder = null;
+  folders = folders.filter((f) => !allIds.includes(f.id));
+  if (allIds.includes(currentFolder)) currentFolder = null;
   if (currentId && folderMemos.some((m) => m.id === currentId)) {
     currentId = null;
     hideEditor();
@@ -899,8 +967,12 @@ function restoreFromTrash(index) {
     // 같은 이름의 폴더가 이미 있으면 이름 뒤에 (복원) 추가
     const exists = folders.some((f) => f.name === item.data.name);
     if (exists) item.data.name += ' (복원)';
+    // 부모 폴더가 없으면 최상위로 복원
+    if (item.data.parentId && !folders.some((f) => f.id === item.data.parentId)) {
+      item.data.parentId = null;
+    }
+    item.data.sortOrder = nextSortOrder(item.data.parentId || null);
     folders.push(item.data);
-    folders.sort((a, b) => a.name.localeCompare(b.name));
   }
   trash.splice(index, 1);
   saveLocalData();
@@ -961,8 +1033,16 @@ function loadMemoInEditor(memo) {
 }
 
 function updateFolderSelect(selectedFolder) {
-  folderSelect.innerHTML = '<option value="">-- 폴더 없음 --</option>' +
-    folders.map((f) => `<option value="${f.id}" ${f.id === selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+  let options = '<option value="">-- 폴더 없음 --</option>';
+  const topFolders = folders.filter((f) => !f.parentId).sort(sortBySortOrder);
+  for (const f of topFolders) {
+    options += `<option value="${f.id}" ${f.id === selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`;
+    const children = getChildFolders(f.id);
+    for (const c of children) {
+      options += `<option value="${c.id}" ${c.id === selectedFolder ? 'selected' : ''}>　${escapeHtml(c.name)}</option>`;
+    }
+  }
+  folderSelect.innerHTML = options;
 }
 
 function onFolderSelectChange() {
@@ -1102,6 +1182,24 @@ function updateFolderToggleLabel() {
   btn.textContent = '📁 ' + label;
 }
 
+function renderFolderItem(f, isChild) {
+  const count = isChild ? memos.filter((m) => m.folder === f.id).length : getFolderMemoCount(f.id);
+  const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
+  const childClass = isChild ? ' folder-item--child' : '';
+  return `<div class="folder-item${childClass} ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
+    <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
+    <span class="folder-actions-left">
+      <span class="folder-move" data-moveup="${f.id}" title="위로">▲</span>
+      <span class="folder-move" data-movedown="${f.id}" title="아래로">▼</span>
+      <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
+      <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
+    </span>
+    <span class="folder-actions-right">
+      <span class="folder-del" data-del="${f.id}">&times;</span>
+    </span>
+  </div>`;
+}
+
 function renderFolderList() {
   const lockedIds = getLockedFolderIds();
   const allCount = memos.filter((m) => !lockedIds.includes(m.folder)).length;
@@ -1109,19 +1207,13 @@ function renderFolderList() {
     <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
   </div>`;
 
-  for (const f of folders) {
-    const count = memos.filter((m) => m.folder === f.id).length;
-    const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
-    html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
-      <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
-      <span class="folder-actions-left">
-        <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
-        <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
-      </span>
-      <span class="folder-actions-right">
-        <span class="folder-del" data-del="${f.id}">&times;</span>
-      </span>
-    </div>`;
+  const topFolders = folders.filter((f) => !f.parentId).sort(sortBySortOrder);
+  for (const f of topFolders) {
+    html += renderFolderItem(f, false);
+    const children = getChildFolders(f.id);
+    for (const c of children) {
+      html += renderFolderItem(c, true);
+    }
   }
 
   const noFolderCount = memos.filter((m) => !m.folder).length;
@@ -1143,40 +1235,27 @@ function renderFolderList() {
       didLongPress = false;
       longPressTimer = setTimeout(() => {
         didLongPress = true;
-        // 다른 폴더의 아이콘 숨기기
         folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
         el.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.toggle('show'));
       }, 500);
     }, { passive: true });
 
-    el.addEventListener('touchend', () => {
-      clearTimeout(longPressTimer);
-    });
-
-    el.addEventListener('touchmove', () => {
-      clearTimeout(longPressTimer);
-    });
+    el.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
+    el.addEventListener('touchmove', () => { clearTimeout(longPressTimer); });
 
     el.addEventListener('click', (e) => {
       if (didLongPress) { didLongPress = false; return; }
 
-      if (e.target.classList.contains('folder-del')) {
-        confirmDeleteFolder(e.target.dataset.del);
-        return;
-      }
-      if (e.target.classList.contains('folder-edit')) {
-        showRenameFolderDialog(e.target.dataset.edit);
-        return;
-      }
-      if (e.target.classList.contains('folder-lock')) {
-        showSetPasswordDialog(e.target.dataset.lock);
-        return;
-      }
+      if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
+      if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
+      if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
+      if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
+      if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
+
       const val = el.dataset.folder;
       if (val === '__all__') { currentFolder = null; }
       else if (val === '__none__') { currentFolder = '__none__'; }
       else {
-        // 잠긴 폴더면 비밀번호 확인
         if (isFolderLocked(val)) {
           showPasswordPrompt(val, () => {
             currentFolder = val;
@@ -1201,7 +1280,8 @@ function renderMemoList() {
   if (currentFolder === '__none__') {
     filtered = filtered.filter((m) => !m.folder);
   } else if (currentFolder) {
-    filtered = filtered.filter((m) => m.folder === currentFolder);
+    const childIds = getChildFolders(currentFolder).map((f) => f.id);
+    filtered = filtered.filter((m) => m.folder === currentFolder || childIds.includes(m.folder));
   } else {
     // 전체 보기: 잠긴 폴더의 글 숨기기
     filtered = filtered.filter((m) => !lockedIds.includes(m.folder));
