@@ -12,7 +12,6 @@ let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
-let previewVisible = false;
 let saveTimer = null;
 let undoStack = [];
 let undoTimer = null;
@@ -25,7 +24,6 @@ const app = $('#app');
 const memoList = $('#memo-list');
 const folderList = $('#folder-list');
 const editor = $('#editor');
-const preview = $('#preview');
 const titleInput = $('#memo-title-input');
 const folderSelect = $('#memo-folder-select');
 const searchBox = $('#search-box');
@@ -64,12 +62,12 @@ function init() {
   $('#btn-logout').addEventListener('click', confirmLogout);
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
-  $('#btn-preview').addEventListener('click', togglePreview);
   $('#btn-delete').addEventListener('click', confirmDelete);
   $('#menu-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
 
+  editor.addEventListener('click', onEditorClick);
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
@@ -487,12 +485,6 @@ function showEditor(memo) {
   clearTimeout(undoTimer);
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
-
-  // 메모별 보기 모드 복원
-  previewVisible = !!memo.previewMode;
-  preview.classList.toggle('visible', previewVisible);
-  $('#btn-preview').classList.toggle('active', previewVisible);
-  updatePreview();
 }
 
 function hideEditor() {
@@ -520,13 +512,27 @@ function onFolderSelectChange() {
   scheduleAutoSave();
 }
 
+function onEditorClick(e) {
+  // URL 클릭 시 새 탭으로 열기
+  const pos = editor.selectionStart;
+  const text = editor.value;
+  const urlRegex = /https?:\/\/[^\s)>\]]+/g;
+  let match;
+  while ((match = urlRegex.exec(text)) !== null) {
+    if (pos >= match.index && pos <= match.index + match[0].length) {
+      window.open(match[0], '_blank');
+      e.preventDefault();
+      return;
+    }
+  }
+}
+
 function onEditorInput() {
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
   scheduleUndoSnapshot(memo);
   memo.content = editor.value;
   memo.updatedAt = Date.now();
-  updatePreview();
   scheduleAutoSave();
 }
 
@@ -605,31 +611,8 @@ function performUndo() {
   editor.value = prev;
   memo.content = prev;
   memo.updatedAt = Date.now();
-  updatePreview();
   scheduleAutoSave();
   showToast('되돌리기 완료');
-}
-
-// ── Preview ──
-function togglePreview() {
-  previewVisible = !previewVisible;
-  preview.classList.toggle('visible', previewVisible);
-  $('#btn-preview').classList.toggle('active', previewVisible);
-  if (previewVisible) updatePreview();
-
-  // 현재 메모에 보기 모드 저장
-  const memo = memos.find((m) => m.id === currentId);
-  if (memo) {
-    memo.previewMode = previewVisible;
-    saveLocalData();
-    scheduleSyncToDropbox();
-  }
-}
-
-function updatePreview() {
-  if (!previewVisible) return;
-  const raw = marked.parse(editor.value || '');
-  preview.innerHTML = DOMPurify.sanitize(raw);
 }
 
 // ── Render ──

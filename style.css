@@ -323,59 +323,8 @@ html, body {
   resize: none;
   outline: none;
   overflow-y: auto;
-  tab-size: 2;
+  word-break: break-word;
 }
-
-#preview {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background: var(--card);
-  border-left: 1px solid var(--border);
-  display: none;
-}
-
-#preview.visible { display: block; }
-
-/* Markdown preview styles */
-#preview h1, #preview h2, #preview h3 { margin: 16px 0 8px; }
-#preview h1 { font-size: 1.6rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-#preview h2 { font-size: 1.3rem; }
-#preview h3 { font-size: 1.1rem; }
-#preview p { margin: 8px 0; line-height: 1.7; }
-#preview code {
-  background: var(--bg);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Consolas', monospace;
-  font-size: 0.9em;
-}
-#preview pre {
-  background: var(--bg);
-  padding: 14px;
-  border-radius: var(--radius);
-  overflow-x: auto;
-  margin: 12px 0;
-}
-#preview pre code { padding: 0; background: none; }
-#preview blockquote {
-  border-left: 3px solid var(--accent);
-  padding: 4px 14px;
-  margin: 8px 0;
-  color: var(--text2);
-}
-#preview ul, #preview ol { padding-left: 24px; margin: 8px 0; }
-#preview li { margin: 4px 0; }
-#preview a { color: var(--accent); }
-#preview hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
-#preview table { border-collapse: collapse; margin: 12px 0; width: 100%; }
-#preview th, #preview td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-}
-#preview th { background: var(--bg); }
-#preview img { max-width: 100%; border-radius: var(--radius); }
 
 /* Empty state */
 #empty-state {
@@ -506,7 +455,6 @@ html, body {
   #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
-  #preview.visible { border-left: none; border-top: 1px solid var(--border); }
 
   /* 모바일 글자 크기 증가 */
   .memo-item-title { font-size: 0.92rem; }
