@@ -437,6 +437,32 @@ function getFolderMemoCount(folderId) {
   return memos.filter((m) => m.folder === folderId || childIds.includes(m.folder)).length;
 }
 
+function getDormantFolderIds() {
+  const ids = new Set();
+  for (const f of folders) {
+    if (f.dormant) {
+      ids.add(f.id);
+      getChildFolders(f.id).forEach((c) => ids.add(c.id));
+    }
+    // 부모가 휴면이면 자식도 휴면
+    if (f.parentId) {
+      const parent = folders.find((p) => p.id === f.parentId);
+      if (parent && parent.dormant) ids.add(f.id);
+    }
+  }
+  return ids;
+}
+
+function toggleDormant(folderId) {
+  const f = folders.find((x) => x.id === folderId);
+  if (!f) return;
+  f.dormant = !f.dormant;
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
+  showToast(f.dormant ? '휴면 처리되었습니다' : '휴면이 해제되었습니다');
+}
+
 // ── Folder Password ──
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -1186,6 +1212,7 @@ function renderFolderItem(f, isChild) {
   const count = isChild ? memos.filter((m) => m.folder === f.id).length : getFolderMemoCount(f.id);
   const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
   const childClass = isChild ? ' folder-item--child' : '';
+  const dormantIcon = (!isChild) ? `<span class="folder-dormant" data-dormant="${f.id}" title="${f.dormant ? '휴면 해제' : '휴면 처리'}">${f.dormant ? '☀️' : '💤'}</span>` : '';
   return `<div class="folder-item${childClass} ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
     <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
     <span class="folder-actions-left">
@@ -1193,6 +1220,7 @@ function renderFolderItem(f, isChild) {
       <span class="folder-move" data-movedown="${f.id}" title="아래로">▼</span>
       <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
       <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
+      ${dormantIcon}
     </span>
     <span class="folder-actions-right">
       <span class="folder-del" data-del="${f.id}">&times;</span>
@@ -1202,12 +1230,14 @@ function renderFolderItem(f, isChild) {
 
 function renderFolderList() {
   const lockedIds = getLockedFolderIds();
-  const allCount = memos.filter((m) => !lockedIds.includes(m.folder)).length;
+  const dormantIds = getDormantFolderIds();
+  const allCount = memos.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder)).length;
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
     <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
   </div>`;
 
-  const topFolders = folders.filter((f) => !f.parentId).sort(sortBySortOrder);
+  // 활성 폴더 (휴면이 아닌 폴더)
+  const topFolders = folders.filter((f) => !f.parentId && !f.dormant).sort(sortBySortOrder);
   for (const f of topFolders) {
     html += renderFolderItem(f, false);
     const children = getChildFolders(f.id);
@@ -1223,8 +1253,43 @@ function renderFolderList() {
     </div>`;
   }
 
+  // 휴면 폴더 섹션
+  const dormantTopFolders = folders.filter((f) => !f.parentId && f.dormant).sort(sortBySortOrder);
+  if (dormantTopFolders.length > 0) {
+    const dormantMemoCount = memos.filter((m) => dormantIds.has(m.folder)).length;
+    html += `<div class="folder-dormant-toggle" id="dormant-toggle">
+      <span>💤 휴면 폴더 <span class="folder-count">(${dormantMemoCount})</span></span>
+      <span class="dormant-arrow">▶</span>
+    </div>`;
+    html += `<div class="folder-dormant-list" id="dormant-list" style="display:none;">`;
+    for (const f of dormantTopFolders) {
+      html += renderFolderItem(f, false);
+      const children = getChildFolders(f.id);
+      for (const c of children) {
+        html += renderFolderItem(c, true);
+      }
+    }
+    html += `</div>`;
+  }
+
   folderList.innerHTML = html;
   updateFolderToggleLabel();
+
+  // 휴면 폴더 토글
+  const dormantToggle = folderList.querySelector('#dormant-toggle');
+  if (dormantToggle) {
+    dormantToggle.addEventListener('click', () => {
+      const list = folderList.querySelector('#dormant-list');
+      const arrow = dormantToggle.querySelector('.dormant-arrow');
+      if (list.style.display === 'none') {
+        list.style.display = 'block';
+        arrow.textContent = '▼';
+      } else {
+        list.style.display = 'none';
+        arrow.textContent = '▶';
+      }
+    });
+  }
 
   folderList.querySelectorAll('.folder-item').forEach((el) => {
     // Long press for mobile: show action icons
@@ -1251,6 +1316,7 @@ function renderFolderList() {
       if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
       if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
       if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
+      if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
 
       const val = el.dataset.folder;
       if (val === '__all__') { currentFolder = null; }
@@ -1283,8 +1349,9 @@ function renderMemoList() {
     const childIds = getChildFolders(currentFolder).map((f) => f.id);
     filtered = filtered.filter((m) => m.folder === currentFolder || childIds.includes(m.folder));
   } else {
-    // 전체 보기: 잠긴 폴더의 글 숨기기
-    filtered = filtered.filter((m) => !lockedIds.includes(m.folder));
+    // 전체 보기: 잠긴 폴더 + 휴면 폴더의 글 숨기기
+    const dormantIds = getDormantFolderIds();
+    filtered = filtered.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder));
   }
 
   if (query) {
