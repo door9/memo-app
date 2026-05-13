@@ -459,6 +459,18 @@ html, body {
   #editor-toolbar { padding-left: 60px; }
   #editor-container { flex-direction: column; }
   #preview.visible { border-left: none; border-top: 1px solid var(--border); }
+
+  /* 모바일 글자 크기 1pt 증가 */
+  .memo-item-title { font-size: 0.92rem; }
+  .memo-item-date { font-size: 0.75rem; }
+  #memo-title-input { font-size: 1.2rem; }
+  #editor { font-size: 1.05rem; }
+  #search-box { font-size: 0.92rem; }
+  .btn { font-size: 0.9rem; }
+  .folder-item { font-size: 0.92rem; }
+
+  /* 모바일 에디터 툴바: 폴더 select 숨김 */
+  #memo-folder-select { display: none; }
 }
 
 /* Scrollbar */
