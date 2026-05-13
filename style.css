@@ -501,8 +501,8 @@ html, body {
   #sidebar.open { transform: translateX(0); }
   #menu-toggle { display: flex; align-items: center; justify-content: center; }
   #sidebar-header { padding-top: 56px; }
-  #editor-toolbar { padding: 8px 12px 8px 52px; gap: 6px; }
-  #toolbar-buttons { gap: 6px; }
+  #editor-toolbar { padding: 8px 12px; gap: 6px; }
+  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 44px; }
   #editor-container { flex-direction: column; }
   #preview.visible { border-left: none; border-top: 1px solid var(--border); }
 
