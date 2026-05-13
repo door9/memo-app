@@ -176,25 +176,36 @@ html, body {
   font-weight: 400;
 }
 
-.folder-actions {
+.folder-actions-left,
+.folder-actions-right {
   display: none;
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
 }
-.folder-item:hover .folder-actions,
-.folder-actions.show { display: flex; }
+.folder-actions-left { margin-left: 2px; }
+.folder-actions-right { margin-left: auto; }
 
-.folder-actions .folder-edit,
-.folder-actions .folder-lock,
-.folder-actions .folder-del {
+.folder-item:hover .folder-actions-left,
+.folder-item:hover .folder-actions-right,
+.folder-actions-left.show,
+.folder-actions-right.show { display: flex; }
+
+.folder-actions-left .folder-edit,
+.folder-actions-left .folder-lock {
   font-size: 0.7rem;
   padding: 0 3px;
   cursor: pointer;
   line-height: 1;
 }
-.folder-actions .folder-del { color: var(--text2); font-size: 0.8rem; }
-.folder-actions .folder-del:hover { color: var(--accent); }
+.folder-actions-right .folder-del {
+  font-size: 0.8rem;
+  color: var(--text2);
+  padding: 0 3px;
+  cursor: pointer;
+  line-height: 1;
+}
+.folder-actions-right .folder-del:hover { color: var(--accent); }
 
 .folder-add-btn {
   width: 100%;
