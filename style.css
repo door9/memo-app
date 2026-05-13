@@ -186,10 +186,10 @@ html, body {
 .folder-actions-right {
   display: none;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   flex-shrink: 0;
 }
-.folder-actions-left { margin-left: 2px; }
+.folder-actions-left { margin-left: 4px; }
 .folder-actions-right { margin-left: auto; }
 
 .folder-item:hover .folder-actions-left,
@@ -202,8 +202,8 @@ html, body {
 }
 
 .folder-actions-left .folder-move {
-  font-size: 0.6rem;
-  padding: 0 2px;
+  font-size: 0.75rem;
+  padding: 2px 3px;
   cursor: pointer;
   line-height: 1;
   color: var(--text2);
@@ -212,15 +212,15 @@ html, body {
 
 .folder-actions-left .folder-edit,
 .folder-actions-left .folder-lock {
-  font-size: 0.7rem;
-  padding: 0 3px;
+  font-size: 0.85rem;
+  padding: 2px 3px;
   cursor: pointer;
   line-height: 1;
 }
 .folder-actions-right .folder-del {
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: var(--text2);
-  padding: 0 3px;
+  padding: 2px 4px;
   cursor: pointer;
   line-height: 1;
 }
@@ -248,8 +248,8 @@ html, body {
 
 .folder-actions-left .folder-moveto,
 .folder-actions-left .folder-dormant {
-  font-size: 0.7rem;
-  padding: 0 3px;
+  font-size: 0.85rem;
+  padding: 2px 3px;
   cursor: pointer;
   line-height: 1;
 }
