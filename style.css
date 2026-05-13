@@ -386,6 +386,7 @@ html, body {
   color: var(--text2);
   font-size: 1.1rem;
   gap: 12px;
+  cursor: pointer;
 }
 #empty-state .icon { font-size: 3rem; opacity: 0.3; }
 
