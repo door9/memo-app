@@ -1238,23 +1238,11 @@ function applyViewerMode(on) {
 let lastSavedContent = '';
 
 function scheduleUndoSnapshot(memo) {
-  if (!undoTimer) {
-    // 타이핑 시작 시 현재 상태를 즉시 저장
-    if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== memo.content) {
-      undoStack.push(memo.content);
-      if (undoStack.length > UNDO_MAX) undoStack.shift();
-    }
+  const cur = editor.value;
+  if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== cur) {
+    undoStack.push(cur);
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
   }
-  clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => {
-    // 타이핑 멈춘 후 1초 뒤 현재 상태도 저장
-    const cur = editor.value;
-    if (undoStack[undoStack.length - 1] !== cur) {
-      undoStack.push(cur);
-      if (undoStack.length > UNDO_MAX) undoStack.shift();
-    }
-    undoTimer = null;
-  }, 1000);
 }
 
 function performUndo() {
