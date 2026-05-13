@@ -9,6 +9,7 @@ const REDIRECT_URI = location.origin + location.pathname;
 let memos = [];
 let folders = [];
 let trash = []; // 휴지통: { type: 'memo'|'folder', data: {...}, deletedAt: timestamp }
+let deletedIds = []; // 영구 삭제된 ID 목록 (동기화 시 복귀 차단)
 let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
@@ -328,9 +329,10 @@ async function syncFromDropbox() {
   try {
     const remote = await dbxDownload();
     if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
+      if (Array.isArray(remote.deletedIds)) deletedIds = mergeDeletedIds(deletedIds, remote.deletedIds);
+      if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
       if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
       if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
-      if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
       if (remote.masterPassword && !masterPasswordHash) masterPasswordHash = remote.masterPassword;
     } else if (remote && Array.isArray(remote)) {
       memos = mergeMemos(memos, remote);
@@ -351,7 +353,7 @@ async function syncFromDropbox() {
 
 async function syncToDropbox() {
   if (!accessToken) return;
-  const obj = { memos, folders, trash };
+  const obj = { memos, folders, trash, deletedIds };
   if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
   const data = JSON.stringify(obj, null, 2);
   await dbxUpload(data);
@@ -367,17 +369,19 @@ function mergeMemos(local, remote) {
     }
   }
   const trashMemoIds = new Set(trash.filter((t) => t.type === 'memo').map((t) => t.data.id));
+  const permDelIds = new Set(deletedIds);
   return Array.from(map.values())
-    .filter((m) => !m.deleted && !trashMemoIds.has(m.id))
+    .filter((m) => !m.deleted && !trashMemoIds.has(m.id) && !permDelIds.has(m.id))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function mergeFolders(local, remote) {
   const trashFolderIds = new Set(trash.filter((t) => t.type === 'folder').map((t) => t.data.id));
+  const permDelIds = new Set(deletedIds);
   const map = new Map();
-  for (const f of remote) { if (!trashFolderIds.has(f.id)) map.set(f.id, f); }
+  for (const f of remote) { if (!trashFolderIds.has(f.id) && !permDelIds.has(f.id)) map.set(f.id, f); }
   for (const f of local) {
-    if (!map.has(f.id) && !trashFolderIds.has(f.id)) map.set(f.id, f);
+    if (!map.has(f.id) && !trashFolderIds.has(f.id) && !permDelIds.has(f.id)) map.set(f.id, f);
   }
   const result = Array.from(map.values());
   result.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
@@ -394,11 +398,16 @@ function mergeTrash(local, remote) {
   return Array.from(map.values()).sort((a, b) => b.deletedAt - a.deletedAt);
 }
 
+function mergeDeletedIds(local, remote) {
+  return [...new Set([...local, ...remote])];
+}
+
 // ── Local Storage ──
 function saveLocalData() {
   localStorage.setItem('memos', JSON.stringify(memos));
   localStorage.setItem('folders', JSON.stringify(folders));
   localStorage.setItem('trash', JSON.stringify(trash));
+  localStorage.setItem('deletedIds', JSON.stringify(deletedIds));
   if (masterPasswordHash) localStorage.setItem('master_pw', masterPasswordHash);
   else localStorage.removeItem('master_pw');
 }
@@ -411,6 +420,8 @@ function loadLocalData() {
     if (fd) folders = JSON.parse(fd);
     const td = localStorage.getItem('trash');
     if (td) trash = JSON.parse(td);
+    const dd = localStorage.getItem('deletedIds');
+    if (dd) deletedIds = JSON.parse(dd);
     masterPasswordHash = localStorage.getItem('master_pw') || null;
     // 마이그레이션: sortOrder 없는 폴더에 순번 부여
     folders.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
@@ -988,6 +999,7 @@ function showTrashView() {
     if (emptyBtn) {
       emptyBtn.onclick = () => {
         if (confirm('휴지통을 비우시겠습니까? 영구적으로 삭제됩니다.')) {
+          for (const t of trash) deletedIds.push(t.data.id);
           trash = [];
           saveLocalData();
           scheduleSyncToDropbox();
@@ -1020,6 +1032,7 @@ function showTrashView() {
         const item = trash[idx];
         const name = item.type === 'folder' ? item.data.name : (item.data.title || '제목 없음');
         if (confirm(`"${name}"을(를) 영구 삭제하시겠습니까?`)) {
+          deletedIds.push(item.data.id);
           trash.splice(idx, 1);
           saveLocalData();
           scheduleSyncToDropbox();
