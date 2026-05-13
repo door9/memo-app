@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>My Memo</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#16213e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app" style="display:none">
+  <button id="menu-toggle">☰</button>
+
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <h1>
+        My Memo
+        <span id="sync-status">오프라인</span>
+      </h1>
+      <input type="text" id="search-box" placeholder="메모 검색...">
+      <div id="sidebar-actions">
+        <button class="btn btn-primary" id="btn-new">+ 새 메모</button>
+        <button class="btn btn-secondary" id="btn-sync" title="동기화">⟳</button>
+      </div>
+    </div>
+    <div id="memo-list"></div>
+  </aside>
+
+  <main id="editor-area">
+    <div id="editor-toolbar" style="display:none">
+      <input type="text" id="memo-title-input" placeholder="제목 없음">
+      <button class="btn-icon" id="btn-preview" title="미리보기 토글">👁</button>
+      <button class="btn-icon" id="btn-delete" title="삭제">🗑</button>
+    </div>
+    <div id="editor-container" style="display:none">
+      <textarea id="editor" placeholder="마크다운으로 메모를 작성하세요..."></textarea>
+      <div id="preview"></div>
+    </div>
+    <div id="empty-state">
+      <div class="icon">📝</div>
+      <div>메모를 선택하거나 새 메모를 만드세요</div>
+    </div>
+  </main>
+</div>
+
+<div id="login-screen">
+  <h1>My Memo</h1>
+  <p>Dropbox와 동기화되는 개인 메모 앱입니다. 로그인하여 시작하세요.</p>
+  <button class="btn-dropbox" id="btn-login">Dropbox로 로그인</button>
+  <p style="font-size:0.8rem; color:#666; margin-top:20px;">
+    오프라인 모드로도 사용 가능합니다.<br>
+    <a href="#" id="btn-offline" style="color:var(--accent)">오프라인으로 시작</a>
+  </p>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
