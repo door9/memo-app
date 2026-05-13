@@ -246,6 +246,7 @@ html, body {
   background: var(--bg);
 }
 
+.folder-actions-left .folder-moveto,
 .folder-actions-left .folder-dormant {
   font-size: 0.7rem;
   padding: 0 3px;

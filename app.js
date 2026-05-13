@@ -748,6 +748,46 @@ function moveFolderDown(folderId) {
   scheduleSyncToDropbox();
 }
 
+function showMoveFolderDialog(id) {
+  const folder = folders.find((f) => f.id === id);
+  if (!folder) return;
+  // 이동 가능한 대상: 최상위로 + 자기 자신과 자기 하위 폴더를 제외한 최상위 폴더
+  const childIds = getChildFolders(id).map((f) => f.id);
+  const topFolders = folders.filter((f) => !f.parentId && f.id !== id && !childIds.includes(f.id)).sort(sortBySortOrder);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  let optionsHtml = `<option value="">-- 최상위 (이동 안 함) --</option>`;
+  for (const f of topFolders) {
+    const selected = folder.parentId === f.id ? ' selected' : '';
+    optionsHtml += `<option value="${f.id}"${selected}>${escapeHtml(f.name)}</option>`;
+  }
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>"${escapeHtml(folder.name)}" 폴더를 이동</p>
+      <select id="move-folder-select" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.9rem;outline:none;margin-bottom:16px;">
+        ${optionsHtml}
+      </select>
+      <button class="btn btn-secondary" id="movef-cancel">취소</button>
+      <button class="btn btn-primary" id="movef-ok">이동</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#movef-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#movef-ok').onclick = () => {
+    const newParent = overlay.querySelector('#move-folder-select').value || null;
+    folder.parentId = newParent;
+    folder.sortOrder = nextSortOrder(newParent);
+    saveLocalData();
+    renderAll();
+    scheduleSyncToDropbox();
+    overlay.remove();
+    showToast('폴더가 이동되었습니다');
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 function showRenameFolderDialog(id) {
   const folder = folders.find((f) => f.id === id);
   if (!folder) return;
@@ -1220,6 +1260,7 @@ function renderFolderItem(f, isChild) {
       <span class="folder-move" data-movedown="${f.id}" title="아래로">▼</span>
       <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
       <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
+      <span class="folder-moveto" data-moveto="${f.id}" title="폴더 이동">📂</span>
       ${dormantIcon}
     </span>
     <span class="folder-actions-right">
@@ -1316,6 +1357,7 @@ function renderFolderList() {
       if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
       if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
       if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
+      if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
       if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
 
       const val = el.dataset.folder;
