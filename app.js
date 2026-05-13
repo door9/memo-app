@@ -8,6 +8,7 @@ const REDIRECT_URI = location.origin + location.pathname;
 // ── State ──
 let memos = [];
 let folders = [];
+let trash = []; // 휴지통: { type: 'memo'|'folder', data: {...}, deletedAt: timestamp }
 let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
@@ -69,6 +70,7 @@ function init() {
   $('#btn-logout').addEventListener('click', confirmLogout);
   $('#btn-master-pw').addEventListener('click', showMasterPasswordDialog);
   $('#btn-master-unlock').addEventListener('click', showMasterUnlockPrompt);
+  $('#btn-trash').addEventListener('click', showTrashView);
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
@@ -321,6 +323,7 @@ async function syncFromDropbox() {
     if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
       if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
       if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+      if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
       if (remote.masterPassword && !masterPasswordHash) masterPasswordHash = remote.masterPassword;
     } else if (remote && Array.isArray(remote)) {
       memos = mergeMemos(memos, remote);
@@ -341,7 +344,7 @@ async function syncFromDropbox() {
 
 async function syncToDropbox() {
   if (!accessToken) return;
-  const obj = { memos, folders };
+  const obj = { memos, folders, trash };
   if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
   const data = JSON.stringify(obj, null, 2);
   await dbxUpload(data);
@@ -370,10 +373,21 @@ function mergeFolders(local, remote) {
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function mergeTrash(local, remote) {
+  const map = new Map();
+  for (const t of remote) map.set(t.data.id + '_' + t.type, t);
+  for (const t of local) {
+    const key = t.data.id + '_' + t.type;
+    if (!map.has(key)) map.set(key, t);
+  }
+  return Array.from(map.values()).sort((a, b) => b.deletedAt - a.deletedAt);
+}
+
 // ── Local Storage ──
 function saveLocalData() {
   localStorage.setItem('memos', JSON.stringify(memos));
   localStorage.setItem('folders', JSON.stringify(folders));
+  localStorage.setItem('trash', JSON.stringify(trash));
   if (masterPasswordHash) localStorage.setItem('master_pw', masterPasswordHash);
   else localStorage.removeItem('master_pw');
 }
@@ -384,6 +398,8 @@ function loadLocalData() {
     if (md) memos = JSON.parse(md);
     const fd = localStorage.getItem('folders');
     if (fd) folders = JSON.parse(fd);
+    const td = localStorage.getItem('trash');
+    if (td) trash = JSON.parse(td);
     masterPasswordHash = localStorage.getItem('master_pw') || null;
   } catch {}
 }
@@ -640,13 +656,51 @@ function showFolderDialog() {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
+function confirmDeleteFolder(id) {
+  const folder = folders.find((f) => f.id === id);
+  if (!folder) return;
+  const folderMemos = memos.filter((m) => m.folder === id);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>"${escapeHtml(folder.name)}" 폴더를 삭제할까요?${folderMemos.length > 0 ? '<br><span style="font-size:0.85rem;color:var(--text2)">폴더 내 메모 ' + folderMemos.length + '개도 휴지통으로 이동합니다.</span>' : ''}</p>
+      <button class="btn btn-secondary" id="fdel-cancel">취소</button>
+      <button class="btn btn-primary" id="fdel-ok">삭제</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#fdel-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#fdel-ok').onclick = () => {
+    overlay.remove();
+    deleteFolder(id);
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 function deleteFolder(id) {
+  const folder = folders.find((f) => f.id === id);
+  // 폴더 내 메모들을 휴지통으로 이동
+  const folderMemos = memos.filter((m) => m.folder === id);
+  for (const m of folderMemos) {
+    trash.push({ type: 'memo', data: { ...m }, deletedAt: Date.now() });
+  }
+  memos = memos.filter((m) => m.folder !== id);
+  // 폴더 자체도 휴지통으로
+  if (folder) {
+    trash.push({ type: 'folder', data: { ...folder }, deletedAt: Date.now() });
+  }
   folders = folders.filter((f) => f.id !== id);
-  memos.forEach((m) => { if (m.folder === id) m.folder = null; });
   if (currentFolder === id) currentFolder = null;
+  if (currentId && folderMemos.some((m) => m.id === currentId)) {
+    currentId = null;
+    hideEditor();
+  }
   saveLocalData();
   renderAll();
   scheduleSyncToDropbox();
+  showToast('폴더가 휴지통으로 이동되었습니다');
 }
 
 // ── Memo CRUD ──
@@ -670,6 +724,10 @@ function createMemo() {
 }
 
 function deleteMemo(id) {
+  const memo = memos.find((m) => m.id === id);
+  if (memo) {
+    trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
+  }
   memos = memos.filter((m) => m.id !== id);
   if (currentId === id) {
     currentId = null;
@@ -678,7 +736,7 @@ function deleteMemo(id) {
   saveLocalData();
   renderAll();
   scheduleSyncToDropbox();
-  showToast('메모가 삭제되었습니다');
+  showToast('메모가 휴지통으로 이동되었습니다');
 }
 
 function confirmDelete() {
@@ -705,6 +763,107 @@ function confirmDelete() {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
   });
+}
+
+// ── Trash ──
+function showTrashView() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  function renderTrashList() {
+    if (trash.length === 0) {
+      return '<p style="color:var(--text2);font-size:0.9rem;">휴지통이 비어 있습니다.</p>';
+    }
+    return trash.map((item, i) => {
+      const icon = item.type === 'folder' ? '📁' : '📝';
+      const name = item.type === 'folder' ? item.data.name : (item.data.title || formatCreatedAt(item.data.createdAt) + ' 새 글');
+      const date = formatDate(item.deletedAt);
+      return `<div class="trash-item" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.85rem;">
+        <span>${icon}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(name)}</span>
+        <span style="font-size:0.7rem;color:var(--text2);flex-shrink:0;">${date}</span>
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:0.75rem;" data-restore="${i}">복원</button>
+        <button class="btn btn-primary" style="padding:3px 8px;font-size:0.75rem;" data-permadel="${i}">삭제</button>
+      </div>`;
+    }).join('');
+  }
+
+  function render() {
+    overlay.innerHTML = `
+      <div class="modal-box" style="max-width:480px;max-height:70vh;display:flex;flex-direction:column;text-align:left;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="font-size:1rem;">🗑 휴지통</h3>
+          ${trash.length > 0 ? '<button class="btn btn-primary" id="trash-empty" style="padding:4px 10px;font-size:0.75rem;">비우기</button>' : ''}
+        </div>
+        <div style="overflow-y:auto;flex:1;">${renderTrashList()}</div>
+        <div style="text-align:center;margin-top:12px;">
+          <button class="btn btn-secondary" id="trash-close">닫기</button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('#trash-close').onclick = () => overlay.remove();
+
+    const emptyBtn = overlay.querySelector('#trash-empty');
+    if (emptyBtn) {
+      emptyBtn.onclick = () => {
+        if (confirm('휴지통을 비우시겠습니까? 영구적으로 삭제됩니다.')) {
+          trash = [];
+          saveLocalData();
+          scheduleSyncToDropbox();
+          render();
+          showToast('휴지통을 비웠습니다');
+        }
+      };
+    }
+
+    overlay.querySelectorAll('[data-restore]').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.restore);
+        restoreFromTrash(idx);
+        render();
+      };
+    });
+
+    overlay.querySelectorAll('[data-permadel]').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.permadel);
+        const item = trash[idx];
+        const name = item.type === 'folder' ? item.data.name : (item.data.title || '제목 없음');
+        if (confirm(`"${name}"을(를) 영구 삭제하시겠습니까?`)) {
+          trash.splice(idx, 1);
+          saveLocalData();
+          scheduleSyncToDropbox();
+          render();
+          showToast('영구 삭제되었습니다');
+        }
+      };
+    });
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
+
+  document.body.appendChild(overlay);
+  render();
+}
+
+function restoreFromTrash(index) {
+  const item = trash[index];
+  if (!item) return;
+  if (item.type === 'memo') {
+    memos.unshift(item.data);
+  } else if (item.type === 'folder') {
+    // 같은 이름의 폴더가 이미 있으면 이름 뒤에 (복원) 추가
+    const exists = folders.some((f) => f.name === item.data.name);
+    if (exists) item.data.name += ' (복원)';
+    folders.push(item.data);
+    folders.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  trash.splice(index, 1);
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
+  showToast('복원되었습니다');
 }
 
 // ── Favorite ──
@@ -928,7 +1087,7 @@ function renderFolderList() {
   folderList.querySelectorAll('.folder-item').forEach((el) => {
     el.addEventListener('click', (e) => {
       if (e.target.classList.contains('folder-del')) {
-        deleteFolder(e.target.dataset.del);
+        confirmDeleteFolder(e.target.dataset.del);
         return;
       }
       if (e.target.classList.contains('folder-lock')) {
