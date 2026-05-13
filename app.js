@@ -541,7 +541,7 @@ function showSetPasswordDialog(folderId) {
   (overlay.querySelector('#pw-old') || overlay.querySelector('#pw-new')).focus();
 
   const apply = async () => {
-    // 기존 비밀번호 확인 (마스터 패스워드도 허용)
+    // 기존 비밀번호 확인 (Master도 허용)
     if (hasPassword) {
       const oldInput = overlay.querySelector('#pw-old');
       const oldHash = await hashPassword(oldInput.value);
@@ -588,10 +588,10 @@ function showMasterPasswordDialog() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box">
-      <p>${hasMaster ? '🔐 마스터 패스워드 변경/해제' : '🔐 마스터 패스워드 설정'}</p>
-      ${hasMaster ? '<input type="password" id="mp-old" placeholder="현재 마스터 패스워드" autofocus>' : ''}
-      <input type="password" id="mp-new" placeholder="새 마스터 패스워드 (해제하려면 비워두세요)" ${hasMaster ? '' : 'autofocus'}>
-      <input type="password" id="mp-confirm" placeholder="새 마스터 패스워드 확인">
+      <p>${hasMaster ? '🔐 Master 변경/해제' : '🔐 Master 설정'}</p>
+      ${hasMaster ? '<input type="password" id="mp-old" placeholder="현재 Master" autofocus>' : ''}
+      <input type="password" id="mp-new" placeholder="새 Master (해제하려면 비워두세요)" ${hasMaster ? '' : 'autofocus'}>
+      <input type="password" id="mp-confirm" placeholder="새 Master 확인">
       <div>
         <button class="btn btn-secondary" id="mp-cancel">취소</button>
         <button class="btn btn-primary" id="mp-ok">${hasMaster ? '변경' : '설정'}</button>
@@ -616,7 +616,7 @@ function showMasterPasswordDialog() {
     const confirmPw = overlay.querySelector('#mp-confirm').value;
     if (newPw === '' && confirmPw === '') {
       masterPasswordHash = null;
-      showToast('마스터 패스워드가 해제되었습니다');
+      showToast('Master가 해제되었습니다');
     } else if (newPw !== confirmPw) {
       overlay.querySelector('#mp-confirm').value = '';
       overlay.querySelector('#mp-confirm').placeholder = '비밀번호가 일치하지 않습니다';
@@ -624,7 +624,7 @@ function showMasterPasswordDialog() {
       return;
     } else {
       masterPasswordHash = await hashPassword(newPw);
-      showToast('마스터 패스워드가 설정되었습니다');
+      showToast('Master가 설정되었습니다');
     }
     saveLocalData();
     scheduleSyncToDropbox();
@@ -639,7 +639,7 @@ function showMasterPasswordDialog() {
 
 function showMasterUnlockPrompt() {
   if (!masterPasswordHash) {
-    showToast('마스터 패스워드가 설정되지 않았습니다');
+    showToast('Master가 설정되지 않았습니다');
     return;
   }
   const lockedIds = getLockedFolderIds();
@@ -651,8 +651,8 @@ function showMasterUnlockPrompt() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box">
-      <p>🔐 마스터 패스워드로 전체 잠금 해제</p>
-      <input type="password" id="mu-input" placeholder="마스터 패스워드" autofocus>
+      <p>🔐 Master로 전체 잠금 해제</p>
+      <input type="password" id="mu-input" placeholder="Master" autofocus>
       <div>
         <button class="btn btn-secondary" id="mu-cancel">취소</button>
         <button class="btn btn-primary" id="mu-ok">해제</button>
