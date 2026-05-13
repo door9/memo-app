@@ -44,12 +44,14 @@
 
   <main id="editor-area">
     <div id="editor-toolbar" style="display:none">
+      <div id="toolbar-buttons">
+        <select id="memo-folder-select" title="폴더 선택" tabindex="-1"></select>
+        <button class="btn-icon" id="btn-fav" title="즐겨찾기">☆</button>
+        <button class="btn-icon" id="btn-undo" title="되돌리기">↩</button>
+        <button class="btn-icon" id="btn-preview" title="미리보기 토글">📖</button>
+        <button class="btn-icon" id="btn-delete" title="삭제">🗑</button>
+      </div>
       <input type="text" id="memo-title-input" placeholder="제목을 입력해 주세요">
-      <select id="memo-folder-select" title="폴더 선택" tabindex="-1"></select>
-      <button class="btn-icon" id="btn-fav" title="즐겨찾기">☆</button>
-      <button class="btn-icon" id="btn-undo" title="되돌리기">↩</button>
-      <button class="btn-icon" id="btn-preview" title="미리보기 토글">📖</button>
-      <button class="btn-icon" id="btn-delete" title="삭제">🗑</button>
     </div>
     <div id="editor-container" style="display:none">
       <textarea id="editor" placeholder="Hello, there?"></textarea>
