@@ -487,6 +487,11 @@ function showEditor(memo) {
   clearTimeout(undoTimer);
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
+
+  // 메모별 보기 모드 복원
+  previewVisible = !!memo.previewMode;
+  preview.classList.toggle('visible', previewVisible);
+  $('#btn-preview').classList.toggle('active', previewVisible);
   updatePreview();
 }
 
@@ -611,6 +616,14 @@ function togglePreview() {
   preview.classList.toggle('visible', previewVisible);
   $('#btn-preview').classList.toggle('active', previewVisible);
   if (previewVisible) updatePreview();
+
+  // 현재 메모에 보기 모드 저장
+  const memo = memos.find((m) => m.id === currentId);
+  if (memo) {
+    memo.previewMode = previewVisible;
+    saveLocalData();
+    scheduleSyncToDropbox();
+  }
 }
 
 function updatePreview() {
