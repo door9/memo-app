@@ -49,6 +49,7 @@ function init() {
     showApp();
   });
   $('#btn-new').addEventListener('click', createMemo);
+  $('#btn-folder-toggle').addEventListener('click', toggleFolderDropdown);
   $('#btn-folder-add').addEventListener('click', showFolderDialog);
   $('#btn-sync').addEventListener('click', () => {
     if (!accessToken) { loginDropbox(); return; }
@@ -428,29 +429,46 @@ function renderAll() {
   renderMemoList();
 }
 
+function toggleFolderDropdown() {
+  const dd = $('#folder-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateFolderToggleLabel() {
+  const btn = $('#btn-folder-toggle');
+  let label = '전체';
+  if (currentFolder === '__none__') label = '미분류';
+  else if (currentFolder) {
+    const f = folders.find((f) => f.id === currentFolder);
+    if (f) label = f.name;
+  }
+  btn.textContent = '📁 ' + label;
+}
+
 function renderFolderList() {
   const allCount = memos.length;
-  let html = `<span class="folder-chip ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
-    All <span class="folder-count">${allCount}</span>
-  </span>`;
+  let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
+    <span class="folder-item-name">전체</span><span class="folder-count">${allCount}</span>
+  </div>`;
 
   for (const f of folders) {
     const count = memos.filter((m) => m.folder === f.id).length;
-    html += `<span class="folder-chip ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
-      ${escapeHtml(f.name)} <span class="folder-count">${count}</span><span class="folder-del" data-del="${f.id}">&times;</span>
-    </span>`;
+    html += `<div class="folder-item ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
+      <span class="folder-item-name">${escapeHtml(f.name)}</span><span class="folder-count">${count}</span><span class="folder-del" data-del="${f.id}">&times;</span>
+    </div>`;
   }
 
   const noFolderCount = memos.filter((m) => !m.folder).length;
   if (folders.length > 0) {
-    html += `<span class="folder-chip ${currentFolder === '__none__' ? 'active' : ''}" data-folder="__none__">
-      미분류 <span class="folder-count">${noFolderCount}</span>
-    </span>`;
+    html += `<div class="folder-item ${currentFolder === '__none__' ? 'active' : ''}" data-folder="__none__">
+      <span class="folder-item-name">미분류</span><span class="folder-count">${noFolderCount}</span>
+    </div>`;
   }
 
   folderList.innerHTML = html;
+  updateFolderToggleLabel();
 
-  folderList.querySelectorAll('.folder-chip').forEach((el) => {
+  folderList.querySelectorAll('.folder-item').forEach((el) => {
     el.addEventListener('click', (e) => {
       if (e.target.classList.contains('folder-del')) {
         deleteFolder(e.target.dataset.del);
@@ -461,6 +479,7 @@ function renderFolderList() {
       else if (val === '__none__') currentFolder = '__none__';
       else currentFolder = val;
       renderAll();
+      $('#folder-dropdown').style.display = 'none';
     });
   });
 }

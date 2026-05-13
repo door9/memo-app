@@ -25,11 +25,14 @@
       <input type="text" id="search-box" placeholder="메모 검색...">
       <div id="sidebar-actions">
         <button class="btn btn-primary" id="btn-new">+ 새 메모</button>
-        <button class="btn btn-secondary" id="btn-folder-add" title="폴더 추가">+</button>
+        <button class="btn btn-secondary" id="btn-folder-toggle" title="폴더 필터">📁 전체</button>
         <button class="btn btn-secondary" id="btn-sync" title="동기화">⟳</button>
       </div>
     </div>
-    <div id="folder-list"></div>
+    <div id="folder-dropdown" class="folder-dropdown" style="display:none">
+      <div id="folder-list"></div>
+      <button class="folder-add-btn" id="btn-folder-add">+ 새 폴더</button>
+    </div>
     <div id="memo-list"></div>
   </aside>
 
