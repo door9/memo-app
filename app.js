@@ -77,7 +77,6 @@ function init() {
     $('#sidebar').classList.toggle('open');
   });
 
-  editor.addEventListener('click', onEditorClick);
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
@@ -757,21 +756,6 @@ function onFolderSelectChange() {
   memo.folder = folderSelect.value || null;
   memo.updatedAt = Date.now();
   scheduleAutoSave();
-}
-
-function onEditorClick(e) {
-  // URL 클릭 시 새 탭으로 열기
-  const pos = editor.selectionStart;
-  const text = editor.value;
-  const urlRegex = /https?:\/\/[^\s)>\]]+/g;
-  let match;
-  while ((match = urlRegex.exec(text)) !== null) {
-    if (pos >= match.index && pos <= match.index + match[0].length) {
-      window.open(match[0], '_blank');
-      e.preventDefault();
-      return;
-    }
-  }
 }
 
 function onEditorInput() {
