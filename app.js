@@ -77,7 +77,18 @@ function init() {
     $('#sidebar').classList.toggle('open');
   });
 
-  emptyState.addEventListener('click', createMemo);
+  // 에디터 영역 클릭: 사이드바 열려있으면 닫기만, 아니면 빈 화면에서 새 글
+  $('#editor-area').addEventListener('click', (e) => {
+    const sidebar = $('#sidebar');
+    if (sidebar.classList.contains('open')) {
+      sidebar.classList.remove('open');
+      e.stopPropagation();
+      return;
+    }
+    if (emptyState.style.display !== 'none' && emptyState.contains(e.target)) {
+      createMemo();
+    }
+  });
 
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
