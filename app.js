@@ -722,7 +722,7 @@ function renderMemoList() {
 
   memoList.innerHTML = filtered
     .map((m) => {
-      const title = m.title || '제목 없음';
+      const title = m.title || formatCreatedAt(m.createdAt) + ' 새 글';
       const date = formatDate(m.updatedAt);
       const active = m.id === currentId ? 'active' : '';
       const favIcon = m.favorite ? '<span class="memo-item-fav">★</span>' : '';
@@ -774,6 +774,16 @@ function formatDate(ts) {
     return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   }
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
+function formatCreatedAt(ts) {
+  const d = new Date(ts);
+  const Y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, '0');
+  const D = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${Y}-${M}-${D} ${h}:${m}`;
 }
 
 function escapeHtml(s) {
