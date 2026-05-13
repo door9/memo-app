@@ -9,7 +9,7 @@ const REDIRECT_URI = location.origin + location.pathname;
 let memos = [];
 let folders = [];
 let trash = []; // 휴지통: { type: 'memo'|'folder', data: {...}, deletedAt: timestamp }
-let deletedIds = []; // 영구 삭제된 ID 목록 (동기화 시 복귀 차단)
+let deletedIds = []; // 영구 삭제된 항목: { id, at } (동기화 시 복귀 차단, 90일 후 자동 정리)
 let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
@@ -369,7 +369,7 @@ function mergeMemos(local, remote) {
     }
   }
   const trashMemoIds = new Set(trash.filter((t) => t.type === 'memo').map((t) => t.data.id));
-  const permDelIds = new Set(deletedIds);
+  const permDelIds = new Set(deletedIds.map((d) => d.id || d));
   return Array.from(map.values())
     .filter((m) => !m.deleted && !trashMemoIds.has(m.id) && !permDelIds.has(m.id))
     .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -377,7 +377,7 @@ function mergeMemos(local, remote) {
 
 function mergeFolders(local, remote) {
   const trashFolderIds = new Set(trash.filter((t) => t.type === 'folder').map((t) => t.data.id));
-  const permDelIds = new Set(deletedIds);
+  const permDelIds = new Set(deletedIds.map((d) => d.id || d));
   const map = new Map();
   for (const f of remote) { if (!trashFolderIds.has(f.id) && !permDelIds.has(f.id)) map.set(f.id, f); }
   for (const f of local) {
@@ -399,7 +399,18 @@ function mergeTrash(local, remote) {
 }
 
 function mergeDeletedIds(local, remote) {
-  return [...new Set([...local, ...remote])];
+  const map = new Map();
+  for (const d of remote) {
+    const item = typeof d === 'string' ? { id: d, at: Date.now() } : d;
+    map.set(item.id, item);
+  }
+  for (const d of local) {
+    const item = typeof d === 'string' ? { id: d, at: Date.now() } : d;
+    if (!map.has(item.id)) map.set(item.id, item);
+  }
+  // 90일 지난 항목 자동 정리
+  const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  return Array.from(map.values()).filter((d) => d.at > cutoff);
 }
 
 // ── Local Storage ──
@@ -999,7 +1010,7 @@ function showTrashView() {
     if (emptyBtn) {
       emptyBtn.onclick = () => {
         if (confirm('휴지통을 비우시겠습니까? 영구적으로 삭제됩니다.')) {
-          for (const t of trash) deletedIds.push(t.data.id);
+          for (const t of trash) deletedIds.push({ id: t.data.id, at: Date.now() });
           trash = [];
           saveLocalData();
           scheduleSyncToDropbox();
@@ -1032,7 +1043,7 @@ function showTrashView() {
         const item = trash[idx];
         const name = item.type === 'folder' ? item.data.name : (item.data.title || '제목 없음');
         if (confirm(`"${name}"을(를) 영구 삭제하시겠습니까?`)) {
-          deletedIds.push(item.data.id);
+          deletedIds.push({ id: item.data.id, at: Date.now() });
           trash.splice(idx, 1);
           saveLocalData();
           scheduleSyncToDropbox();
