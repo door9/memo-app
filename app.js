@@ -408,8 +408,8 @@ function mergeDeletedIds(local, remote) {
     const item = typeof d === 'string' ? { id: d, at: Date.now() } : d;
     if (!map.has(item.id)) map.set(item.id, item);
   }
-  // 7일 지난 항목 자동 정리
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  // 14일 지난 항목 자동 정리
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
   return Array.from(map.values()).filter((d) => d.at > cutoff);
 }
 
