@@ -437,7 +437,6 @@ html, body {
 
 /* Popup mode (새 창으로 메모 열기) */
 .popup-mode #sidebar,
-.popup-mode #top-bar,
 .popup-mode #menu-toggle,
 .popup-mode #login-screen { display: none !important; }
 .popup-mode #app { display: flex !important; }
@@ -554,29 +553,13 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateY(0); }
 
-/* Top bar */
-#top-bar {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 50;
-  height: 52px;
-  align-items: center;
-  padding: 0 12px;
-}
-#top-bar-title {
-  position: absolute;
-  left: 0; right: 0;
-  text-align: center;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text);
-  pointer-events: none;
-}
+/* Mobile */
 #menu-toggle {
   display: none;
-  position: relative;
-  z-index: 51;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 50;
   width: 40px;
   height: 40px;
   background: var(--text);
@@ -585,7 +568,6 @@ html, body {
   color: var(--bg);
   font-size: 1.2rem;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
@@ -596,13 +578,11 @@ html, body {
     transform: translateX(-100%);
   }
   #sidebar.open { transform: translateX(0); }
-  #top-bar { display: flex; }
   #menu-toggle { display: flex; align-items: center; justify-content: center; }
   #sidebar-header { padding-top: 56px; }
-  #editor-area { padding-top: 52px; }
   #editor-toolbar { padding: 8px 10px; gap: 6px; }
-  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 0; align-items: center; }
-  #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; }
+  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; align-items: center; }
+  #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
 
