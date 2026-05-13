@@ -332,6 +332,12 @@ html, body {
   user-select: text;
 }
 
+/* Popup mode (새 창으로 메모 열기) */
+.popup-mode #sidebar,
+.popup-mode #menu-toggle,
+.popup-mode #login-screen { display: none !important; }
+.popup-mode #app { display: flex !important; }
+
 /* Empty state */
 #empty-state {
   flex: 1;

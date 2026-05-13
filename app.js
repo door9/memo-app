@@ -41,6 +41,10 @@ function init() {
   handleOAuthCallback();
   loadLocalData();
 
+  // URL 파라미터로 특정 메모 열기 (새 창)
+  const urlParams = new URLSearchParams(location.search);
+  const openMemoId = urlParams.get('memo');
+
   if (accessToken) {
     showApp();
     syncFromDropbox();
@@ -88,6 +92,17 @@ function init() {
       createMemo();
     }
   });
+
+  // 새 창으로 열린 경우 해당 메모 바로 표시
+  if (openMemoId) {
+    const memo = memos.find((m) => m.id === openMemoId);
+    if (memo) {
+      if (!accessToken) { isOnline = false; showApp(); }
+      loadMemoInEditor(memo);
+      // 새 창에서는 사이드바 숨기기
+      document.body.classList.add('popup-mode');
+    }
+  }
 }
 
 // ── OAuth ──
@@ -744,10 +759,21 @@ function renderMemoList() {
     .join('');
 
   memoList.querySelectorAll('.memo-item').forEach((el) => {
+    let clickTimer = null;
     el.addEventListener('click', () => {
-      const memo = memos.find((m) => m.id === el.dataset.id);
-      if (memo) loadMemoInEditor(memo);
-      $('#sidebar').classList.remove('open');
+      if (clickTimer) return; // 더블클릭 대기 중이면 무시
+      clickTimer = setTimeout(() => {
+        clickTimer = null;
+        const memo = memos.find((m) => m.id === el.dataset.id);
+        if (memo) loadMemoInEditor(memo);
+        $('#sidebar').classList.remove('open');
+      }, 250);
+    });
+    el.addEventListener('dblclick', () => {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      const id = el.dataset.id;
+      window.open(location.pathname + '?memo=' + id, '_blank', 'width=600,height=700');
     });
   });
 }
