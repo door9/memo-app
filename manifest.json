@@ -6,7 +6,7 @@
   "start_url": "/memo-app/",
   "scope": "/memo-app/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait",
   "background_color": "#fff1e5",
   "theme_color": "#fff1e5",
   "categories": ["productivity", "utilities"],
