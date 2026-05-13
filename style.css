@@ -67,6 +67,12 @@ html, body {
 .btn-backup:hover { opacity: 1; }
 .btn-backup:disabled { opacity: 0.3; cursor: default; }
 
+#btn-sync {
+  font-size: 1.2rem;
+  padding: 0 2px;
+  line-height: 1;
+}
+
 #sync-status {
   font-size: 0.65rem;
   color: var(--text2);
