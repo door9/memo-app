@@ -1,11 +1,13 @@
 // ── Config ──
-const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun'; // Dropbox App Key를 여기에 입력
+const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun';
 const DROPBOX_FILE = '/memo-app/memos.json';
 const REDIRECT_URI = location.origin + location.pathname;
 
 // ── State ──
 let memos = [];
+let folders = [];
 let currentId = null;
+let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
 let previewVisible = false;
@@ -16,9 +18,11 @@ const $ = (s) => document.querySelector(s);
 const loginScreen = $('#login-screen');
 const app = $('#app');
 const memoList = $('#memo-list');
+const folderList = $('#folder-list');
 const editor = $('#editor');
 const preview = $('#preview');
 const titleInput = $('#memo-title-input');
+const folderSelect = $('#memo-folder-select');
 const searchBox = $('#search-box');
 const syncStatus = $('#sync-status');
 const toast = $('#toast');
@@ -31,7 +35,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 function init() {
   handleOAuthCallback();
-  loadLocalMemos();
+  loadLocalData();
 
   if (accessToken) {
     showApp();
@@ -45,11 +49,9 @@ function init() {
     showApp();
   });
   $('#btn-new').addEventListener('click', createMemo);
+  $('#btn-folder-add').addEventListener('click', showFolderDialog);
   $('#btn-sync').addEventListener('click', () => {
-    if (!accessToken) {
-      loginDropbox();
-      return;
-    }
+    if (!accessToken) { loginDropbox(); return; }
     syncFromDropbox();
   });
   $('#btn-preview').addEventListener('click', togglePreview);
@@ -60,6 +62,7 @@ function init() {
 
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
+  folderSelect.addEventListener('change', onFolderSelectChange);
   searchBox.addEventListener('input', renderMemoList);
 
   document.addEventListener('keydown', (e) => {
@@ -143,7 +146,7 @@ async function dbxDownload() {
       'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
     },
   });
-  if (res.status === 409 || res.status === 404) return null; // file not found
+  if (res.status === 409 || res.status === 404) return null;
   if (res.status === 401) {
     showToast('Dropbox 인증 만료. 다시 로그인해주세요.');
     logout();
@@ -159,13 +162,16 @@ async function syncFromDropbox() {
   setSyncStatus('syncing', '동기화 중...');
   try {
     const remote = await dbxDownload();
-    if (remote && Array.isArray(remote)) {
+    if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
+      if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
+      if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+    } else if (remote && Array.isArray(remote)) {
       memos = mergeMemos(memos, remote);
     }
-    saveLocalMemos();
+    saveLocalData();
     await syncToDropbox();
     setSyncStatus('synced', '동기화 완료');
-    renderMemoList();
+    renderAll();
     if (currentId) {
       const memo = memos.find((m) => m.id === currentId);
       if (memo) loadMemoInEditor(memo);
@@ -178,7 +184,7 @@ async function syncFromDropbox() {
 
 async function syncToDropbox() {
   if (!accessToken) return;
-  const data = JSON.stringify(memos, null, 2);
+  const data = JSON.stringify({ memos, folders }, null, 2);
   await dbxUpload(data);
 }
 
@@ -196,16 +202,72 @@ function mergeMemos(local, remote) {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-// ── Local Storage ──
-function saveLocalMemos() {
-  localStorage.setItem('memos', JSON.stringify(memos));
+function mergeFolders(local, remote) {
+  const map = new Map();
+  for (const f of remote) map.set(f.id, f);
+  for (const f of local) {
+    if (!map.has(f.id)) map.set(f.id, f);
+  }
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function loadLocalMemos() {
+// ── Local Storage ──
+function saveLocalData() {
+  localStorage.setItem('memos', JSON.stringify(memos));
+  localStorage.setItem('folders', JSON.stringify(folders));
+}
+
+function loadLocalData() {
   try {
-    const data = localStorage.getItem('memos');
-    if (data) memos = JSON.parse(data);
+    const md = localStorage.getItem('memos');
+    if (md) memos = JSON.parse(md);
+    const fd = localStorage.getItem('folders');
+    if (fd) folders = JSON.parse(fd);
   } catch {}
+}
+
+// ── Folder CRUD ──
+function showFolderDialog() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>새 폴더 이름</p>
+      <input type="text" id="folder-name-input" placeholder="폴더 이름" autofocus>
+      <div>
+        <button class="btn btn-secondary" id="folder-cancel">취소</button>
+        <button class="btn btn-primary" id="folder-ok">만들기</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#folder-name-input');
+  input.focus();
+
+  const create = () => {
+    const name = input.value.trim();
+    if (name) {
+      folders.push({ id: crypto.randomUUID(), name });
+      saveLocalData();
+      renderAll();
+      scheduleSyncToDropbox();
+    }
+    overlay.remove();
+  };
+
+  overlay.querySelector('#folder-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#folder-ok').onclick = create;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') create(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function deleteFolder(id) {
+  folders = folders.filter((f) => f.id !== id);
+  memos.forEach((m) => { if (m.folder === id) m.folder = null; });
+  if (currentFolder === id) currentFolder = null;
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
 }
 
 // ── Memo CRUD ──
@@ -214,13 +276,14 @@ function createMemo() {
     id: crypto.randomUUID(),
     title: '',
     content: '',
+    folder: currentFolder,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
   memos.unshift(memo);
   currentId = memo.id;
-  saveLocalMemos();
-  renderMemoList();
+  saveLocalData();
+  renderAll();
   showEditor(memo);
   titleInput.focus();
   $('#sidebar').classList.remove('open');
@@ -233,8 +296,8 @@ function deleteMemo(id) {
     currentId = null;
     hideEditor();
   }
-  saveLocalMemos();
-  renderMemoList();
+  saveLocalData();
+  renderAll();
   scheduleSyncToDropbox();
   showToast('메모가 삭제되었습니다');
 }
@@ -272,6 +335,7 @@ function showEditor(memo) {
   emptyState.style.display = 'none';
   titleInput.value = memo.title;
   editor.value = memo.content;
+  updateFolderSelect(memo.folder);
   updatePreview();
 }
 
@@ -285,6 +349,19 @@ function loadMemoInEditor(memo) {
   currentId = memo.id;
   showEditor(memo);
   renderMemoList();
+}
+
+function updateFolderSelect(selectedFolder) {
+  folderSelect.innerHTML = '<option value="">-- 폴더 없음 --</option>' +
+    folders.map((f) => `<option value="${f.id}" ${f.id === selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+}
+
+function onFolderSelectChange() {
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  memo.folder = folderSelect.value || null;
+  memo.updatedAt = Date.now();
+  scheduleAutoSave();
 }
 
 function onEditorInput() {
@@ -311,8 +388,8 @@ function scheduleAutoSave() {
 
 function saveNow() {
   clearTimeout(saveTimer);
-  saveLocalMemos();
-  renderMemoList();
+  saveLocalData();
+  renderAll();
   scheduleSyncToDropbox();
 }
 
@@ -346,11 +423,60 @@ function updatePreview() {
 }
 
 // ── Render ──
+function renderAll() {
+  renderFolderList();
+  renderMemoList();
+}
+
+function renderFolderList() {
+  const allCount = memos.length;
+  let html = `<span class="folder-chip ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
+    All <span class="folder-count">${allCount}</span>
+  </span>`;
+
+  for (const f of folders) {
+    const count = memos.filter((m) => m.folder === f.id).length;
+    html += `<span class="folder-chip ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
+      ${escapeHtml(f.name)} <span class="folder-count">${count}</span><span class="folder-del" data-del="${f.id}">&times;</span>
+    </span>`;
+  }
+
+  const noFolderCount = memos.filter((m) => !m.folder).length;
+  if (folders.length > 0) {
+    html += `<span class="folder-chip ${currentFolder === '__none__' ? 'active' : ''}" data-folder="__none__">
+      미분류 <span class="folder-count">${noFolderCount}</span>
+    </span>`;
+  }
+
+  folderList.innerHTML = html;
+
+  folderList.querySelectorAll('.folder-chip').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if (e.target.classList.contains('folder-del')) {
+        deleteFolder(e.target.dataset.del);
+        return;
+      }
+      const val = el.dataset.folder;
+      if (val === '__all__') currentFolder = null;
+      else if (val === '__none__') currentFolder = '__none__';
+      else currentFolder = val;
+      renderAll();
+    });
+  });
+}
+
 function renderMemoList() {
   const query = searchBox.value.toLowerCase().trim();
   let filtered = memos;
+
+  if (currentFolder === '__none__') {
+    filtered = filtered.filter((m) => !m.folder);
+  } else if (currentFolder) {
+    filtered = filtered.filter((m) => m.folder === currentFolder);
+  }
+
   if (query) {
-    filtered = memos.filter(
+    filtered = filtered.filter(
       (m) =>
         (m.title || '').toLowerCase().includes(query) ||
         (m.content || '').toLowerCase().includes(query)
@@ -360,13 +486,13 @@ function renderMemoList() {
   memoList.innerHTML = filtered
     .map((m) => {
       const title = m.title || '제목 없음';
-      const previewText = (m.content || '').replace(/[#*_`>\-\[\]()]/g, '').substring(0, 60);
       const date = formatDate(m.updatedAt);
       const active = m.id === currentId ? 'active' : '';
       return `
         <div class="memo-item ${active}" data-id="${m.id}">
-          <div class="memo-item-title">${escapeHtml(title)}</div>
-          <div class="memo-item-preview">${escapeHtml(previewText)}</div>
+          <div class="memo-item-info">
+            <div class="memo-item-title">${escapeHtml(title)}</div>
+          </div>
           <div class="memo-item-date">${date}</div>
         </div>
       `;
@@ -386,7 +512,7 @@ function renderMemoList() {
 function showApp() {
   loginScreen.style.display = 'none';
   app.style.display = 'flex';
-  renderMemoList();
+  renderAll();
   if (accessToken) setSyncStatus('synced', '연결됨');
   else setSyncStatus('', '오프라인');
 }

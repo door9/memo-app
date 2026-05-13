@@ -24,15 +24,18 @@
       <input type="text" id="search-box" placeholder="메모 검색...">
       <div id="sidebar-actions">
         <button class="btn btn-primary" id="btn-new">+ 새 메모</button>
+        <button class="btn btn-secondary" id="btn-folder-add" title="폴더 추가">+</button>
         <button class="btn btn-secondary" id="btn-sync" title="동기화">⟳</button>
       </div>
     </div>
+    <div id="folder-list"></div>
     <div id="memo-list"></div>
   </aside>
 
   <main id="editor-area">
     <div id="editor-toolbar" style="display:none">
       <input type="text" id="memo-title-input" placeholder="제목 없음">
+      <select id="memo-folder-select" title="폴더 선택"></select>
       <button class="btn-icon" id="btn-preview" title="미리보기 토글">👁</button>
       <button class="btn-icon" id="btn-delete" title="삭제">🗑</button>
     </div>
