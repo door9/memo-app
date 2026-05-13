@@ -586,7 +586,13 @@ html, body {
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
 
-  /* 모바일 글자 크기 증가 */
+  /* 모바일 에디터 툴바 */
+  #memo-folder-select { max-width: 100px; font-size: 0.75rem; }
+  .btn-icon { width: 42px; height: 42px; font-size: 1.15rem; }
+}
+
+/* 터치 기기(실제 모바일)에서만 글자 크기 증가 */
+@media (max-width: 768px) and (pointer: coarse) {
   .memo-item-title { font-size: 0.92rem; }
   .memo-item-date { font-size: 0.75rem; }
   #memo-title-input { font-size: 19px; padding: 8px 10px; }
@@ -594,10 +600,6 @@ html, body {
   #search-box { font-size: 0.92rem; }
   .btn { font-size: 0.9rem; }
   .folder-item { font-size: 0.92rem; }
-
-  /* 모바일 에디터 툴바 */
-  #memo-folder-select { max-width: 100px; font-size: 0.75rem; }
-  .btn-icon { width: 42px; height: 42px; font-size: 1.15rem; }
 }
 
 /* Scrollbar */
