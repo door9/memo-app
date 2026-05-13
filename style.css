@@ -326,6 +326,12 @@ html, body {
   word-break: break-word;
 }
 
+#editor.viewer {
+  background: var(--bg);
+  cursor: default;
+  user-select: text;
+}
+
 /* Empty state */
 #empty-state {
   flex: 1;

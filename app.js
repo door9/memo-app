@@ -12,6 +12,7 @@ let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
+let viewerMode = false;
 let saveTimer = null;
 let undoStack = [];
 let undoTimer = null;
@@ -62,6 +63,7 @@ function init() {
   $('#btn-logout').addEventListener('click', confirmLogout);
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
+  $('#btn-viewer').addEventListener('click', toggleViewer);
   $('#btn-delete').addEventListener('click', confirmDelete);
   $('#menu-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
@@ -485,6 +487,7 @@ function showEditor(memo) {
   clearTimeout(undoTimer);
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
+  applyViewerMode(!!memo.viewerMode);
 }
 
 function hideEditor() {
@@ -569,6 +572,25 @@ function scheduleSyncToDropbox() {
       setSyncStatus('error', '저장 실패');
     }
   }, 3000);
+}
+
+// ── Viewer Mode ──
+function toggleViewer() {
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  const newMode = !viewerMode;
+  memo.viewerMode = newMode;
+  applyViewerMode(newMode);
+  saveLocalData();
+  scheduleSyncToDropbox();
+}
+
+function applyViewerMode(on) {
+  viewerMode = on;
+  editor.readOnly = on;
+  titleInput.readOnly = on;
+  editor.classList.toggle('viewer', on);
+  $('#btn-viewer').classList.toggle('active', on);
 }
 
 // ── Undo ──
