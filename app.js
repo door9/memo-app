@@ -952,12 +952,16 @@ function showTrashView() {
       const icon = item.type === 'folder' ? '📁' : '📝';
       const name = item.type === 'folder' ? item.data.name : (item.data.title || formatCreatedAt(item.data.createdAt) + ' 새 글');
       const date = formatDate(item.deletedAt);
-      return `<div class="trash-item" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.85rem;">
-        <span>${icon}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(name)}</span>
-        <span style="font-size:0.7rem;color:var(--text2);flex-shrink:0;">${date}</span>
-        <button class="btn btn-secondary" style="padding:3px 8px;font-size:0.75rem;" data-restore="${i}">복원</button>
-        <button class="btn btn-primary" style="padding:3px 8px;font-size:0.75rem;" data-permadel="${i}">삭제</button>
+      const preview = item.type === 'memo' ? escapeHtml((item.data.content || '').substring(0, 200)) : '';
+      return `<div class="trash-item" style="border-bottom:1px solid var(--border);font-size:0.85rem;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;" data-preview="${i}">
+          <span>${icon}</span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(name)}</span>
+          <span style="font-size:0.7rem;color:var(--text2);flex-shrink:0;">${date}</span>
+          <button class="btn btn-secondary" style="padding:3px 8px;font-size:0.75rem;" data-restore="${i}">복원</button>
+          <button class="btn btn-primary" style="padding:3px 8px;font-size:0.75rem;" data-permadel="${i}">삭제</button>
+        </div>
+        ${item.type === 'memo' ? '<div class="trash-preview" id="trash-preview-' + i + '" style="display:none;padding:6px 10px 10px 36px;font-size:0.8rem;color:var(--text2);white-space:pre-wrap;word-break:break-word;max-height:150px;overflow-y:auto;background:var(--bg);">' + (preview || '<i>내용 없음</i>') + '</div>' : ''}
       </div>`;
     }).join('');
   }
@@ -990,6 +994,15 @@ function showTrashView() {
         }
       };
     }
+
+    overlay.querySelectorAll('[data-preview]').forEach((row) => {
+      row.onclick = (e) => {
+        if (e.target.closest('[data-restore]') || e.target.closest('[data-permadel]')) return;
+        const idx = row.dataset.preview;
+        const prev = overlay.querySelector('#trash-preview-' + idx);
+        if (prev) prev.style.display = prev.style.display === 'none' ? 'block' : 'none';
+      };
+    });
 
     overlay.querySelectorAll('[data-restore]').forEach((btn) => {
       btn.onclick = () => {
