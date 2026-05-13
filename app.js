@@ -61,9 +61,7 @@ function init() {
     if (!accessToken) { loginDropbox(); return; }
     syncFromDropbox();
   });
-  $('#btn-logout').addEventListener('click', () => {
-    if (confirm('로그아웃 하시겠습니까?')) logout();
-  });
+  $('#btn-logout').addEventListener('click', confirmLogout);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-preview').addEventListener('click', togglePreview);
   $('#btn-delete').addEventListener('click', confirmDelete);
@@ -126,6 +124,24 @@ function logout() {
   isOnline = false;
   localStorage.removeItem('dbx_token');
   location.reload();
+}
+
+function confirmLogout() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <p>로그아웃 하시겠습니까?</p>
+      <div>
+        <button class="btn btn-secondary" id="logout-cancel">취소</button>
+        <button class="btn btn-primary" id="logout-ok">로그아웃</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#logout-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#logout-ok').onclick = () => { overlay.remove(); logout(); };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Dropbox API ──

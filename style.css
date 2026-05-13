@@ -181,6 +181,22 @@ html, body {
   padding: 4px 8px;
 }
 
+/* Sidebar footer */
+#sidebar-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+#sidebar-footer button {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+#sidebar-footer button:hover { color: var(--accent); }
+
 .memo-item {
   padding: 7px 10px;
   border-radius: 6px;
