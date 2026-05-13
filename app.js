@@ -77,6 +77,8 @@ function init() {
     $('#sidebar').classList.toggle('open');
   });
 
+  emptyState.addEventListener('click', createMemo);
+
   editor.addEventListener('input', onEditorInput);
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
