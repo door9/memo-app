@@ -182,7 +182,8 @@ html, body {
   gap: 2px;
   flex-shrink: 0;
 }
-.folder-item:hover .folder-actions { display: flex; }
+.folder-item:hover .folder-actions,
+.folder-actions.show { display: flex; }
 
 .folder-actions .folder-edit,
 .folder-actions .folder-lock,
