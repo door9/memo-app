@@ -1147,6 +1147,8 @@ function cleanupEmptyMemo() {
 }
 
 async function loadMemoInEditor(memo) {
+  // 빈 메모 정리를 동기화보다 먼저 실행
+  cleanupEmptyMemo();
   // 글 전환 시 대기 중인 동기화를 즉시 실행
   if (syncTimer) {
     clearTimeout(syncTimer);
@@ -1173,7 +1175,6 @@ async function loadMemoInEditor(memo) {
       setSyncStatus('error', '동기화 실패');
     }
   }
-  cleanupEmptyMemo();
   offlineCopyId = null;
   currentId = memo.id;
   showEditor(memo);
@@ -1516,7 +1517,8 @@ function renderFolderList() {
 
 function renderMemoList() {
   const query = searchBox.value.toLowerCase().trim();
-  let filtered = memos;
+  // 현재 편집 중이 아닌 빈 메모는 목록에서 숨기기
+  let filtered = memos.filter((m) => m.id === currentId || m.title.trim() || m.content.trim());
   const lockedIds = getLockedFolderIds();
 
   if (currentFolder === '__none__') {
