@@ -145,6 +145,20 @@ html, body {
   border: 1px solid var(--border);
 }
 
+.btn-fav-filter {
+  background: var(--bg);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  flex-shrink: 0;
+}
+.btn-fav-filter.active {
+  background: #fff8e1;
+  color: #e6a817;
+  border-color: #e6a817;
+}
+
 /* Folder dropdown */
 .folder-dropdown {
   border-bottom: 1px solid var(--border);
