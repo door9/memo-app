@@ -69,6 +69,7 @@
           <button class="btn-icon" id="btn-fav" title="즐겨찾기">☆</button>
           <button class="btn-icon" id="btn-undo" title="되돌리기">↩</button>
           <button class="btn-icon" id="btn-redo" title="되살리기">↪</button>
+          <button class="btn-icon" id="btn-find" title="찾기/바꾸기">🔍</button>
           <button class="btn-icon" id="btn-copy" title="복사">📋</button>
           <button class="btn-icon" id="btn-share" title="공유">📤</button>
           <button class="btn-icon" id="btn-viewer" title="보기 모드">📖</button>
@@ -76,6 +77,20 @@
         </div>
       </div>
       <input type="text" id="memo-title-input" placeholder="제목을 입력해 주세요">
+      <div id="memo-dates" style="display:none"></div>
+    </div>
+    <div id="find-replace-bar" style="display:none">
+      <div class="find-row">
+        <input type="text" id="find-input" placeholder="찾기">
+        <span id="find-count"></span>
+        <button class="btn-sm" id="find-prev">▲</button>
+        <button class="btn-sm" id="find-next">▼</button>
+      </div>
+      <div class="find-row">
+        <input type="text" id="replace-input" placeholder="바꾸기">
+        <button class="btn-sm" id="replace-one">바꾸기</button>
+        <button class="btn-sm" id="replace-all">전체</button>
+      </div>
     </div>
     <div id="editor-container" style="display:none">
       <textarea id="editor" placeholder="Hello, there?"></textarea>
