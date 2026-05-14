@@ -87,6 +87,7 @@ function init() {
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-redo').addEventListener('click', performRedo);
+  $('#btn-toolbar-more').addEventListener('click', toggleToolbarMore);
   $('#btn-find').addEventListener('click', toggleFindReplace);
   $('#btn-copy').addEventListener('click', copyMemoToClipboard);
   $('#btn-share').addEventListener('click', shareMemo);
@@ -1146,8 +1147,12 @@ function showEditor(memo) {
   updateMemoDates(memo);
   updateCharCount();
   applyViewerMode(!!memo.viewerMode);
-  // 찾기/바꾸기 패널 닫기
+  // 찾기/바꾸기 패널·더보기 닫기
   $('#find-replace-bar').style.display = 'none';
+  document.querySelectorAll('.toolbar-extra').forEach((el) => el.classList.remove('toolbar-show'));
+  $('#btn-toolbar-more').classList.remove('active');
+  $('#toolbar-right').classList.remove('expanded');
+  $('#toolbar-buttons').classList.remove('expanded');
 }
 
 function hideEditor() {
@@ -1384,6 +1389,16 @@ function updateCharCount() {
   if (!el) return;
   const len = editor.value.length;
   el.textContent = len.toLocaleString() + '자';
+}
+
+// ── Toolbar More ──
+function toggleToolbarMore() {
+  const extras = document.querySelectorAll('.toolbar-extra');
+  const btn = $('#btn-toolbar-more');
+  const expanded = btn.classList.toggle('active');
+  extras.forEach((el) => el.classList.toggle('toolbar-show', expanded));
+  $('#toolbar-right').classList.toggle('expanded', expanded);
+  $('#toolbar-buttons').classList.toggle('expanded', expanded);
 }
 
 // ── Memo Dates ──

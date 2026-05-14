@@ -700,6 +700,9 @@ html, body {
   cursor: pointer;
 }
 
+/* PC에서 더보기 버튼 숨기기 */
+#btn-toolbar-more { display: none; }
+
 @media (max-width: 768px) {
   #sidebar {
     position: fixed;
@@ -713,6 +716,14 @@ html, body {
   #editor-toolbar { padding: 8px 10px; gap: 6px; }
   #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; align-items: center; }
   #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
+
+  /* 모바일: 폴더 선택 숨기고, 추가 버튼 숨기고, 더보기 표시 */
+  #memo-folder-select { display: none; }
+  .toolbar-extra { display: none !important; }
+  .toolbar-extra.toolbar-show { display: flex !important; }
+  #btn-toolbar-more { display: flex; }
+  #toolbar-right.expanded { flex-wrap: wrap; }
+  #toolbar-buttons.expanded { padding-left: 0; flex-wrap: wrap; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
 
