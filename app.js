@@ -15,6 +15,7 @@ let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
 let viewerMode = false;
+let favFilterActive = false;
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
 let masterPasswordHash = null;
@@ -70,6 +71,7 @@ function init() {
   $('#btn-new').addEventListener('click', createMemo);
   $('#btn-backup').addEventListener('click', createBackup);
   $('#btn-folder-toggle').addEventListener('click', toggleFolderDropdown);
+  $('#btn-fav-filter').addEventListener('click', toggleFavFilter);
   $('#btn-folder-add').addEventListener('click', showFolderDialog);
   $('#btn-sync').addEventListener('click', () => {
     if (!accessToken) { loginDropbox(); return; }
@@ -1361,6 +1363,14 @@ function toggleFolderDropdown() {
   dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 }
 
+function toggleFavFilter() {
+  favFilterActive = !favFilterActive;
+  const btn = $('#btn-fav-filter');
+  btn.classList.toggle('active', favFilterActive);
+  btn.textContent = favFilterActive ? '★' : '☆';
+  renderMemoList();
+}
+
 function updateFolderToggleLabel() {
   const btn = $('#btn-folder-toggle');
   let label = '전체';
@@ -1518,6 +1528,10 @@ function renderMemoList() {
     // 전체 보기: 잠긴 폴더 + 휴면 폴더의 글 숨기기
     const dormantIds = getDormantFolderIds();
     filtered = filtered.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder));
+  }
+
+  if (favFilterActive) {
+    filtered = filtered.filter((m) => m.favorite);
   }
 
   if (query) {
