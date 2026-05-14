@@ -65,6 +65,13 @@ function init() {
     syncFromDropbox();
   }
 
+  // 네트워크 복구 시 자동 동기화
+  window.addEventListener('online', () => {
+    if (accessToken) {
+      syncFromDropbox();
+    }
+  });
+
   $('#btn-login').addEventListener('click', loginDropbox);
   $('#btn-offline').addEventListener('click', (e) => {
     e.preventDefault();
