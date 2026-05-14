@@ -16,6 +16,9 @@ let accessToken = localStorage.getItem('dbx_token') || null;
 let isOnline = !!accessToken;
 let viewerMode = false;
 let favFilterActive = false;
+let selectMode = false;
+let selectedMemos = new Set();
+let memoSortKey = 'updatedAt';
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
 let masterPasswordHash = null;
@@ -84,8 +87,15 @@ function init() {
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-redo').addEventListener('click', performRedo);
+  $('#btn-copy').addEventListener('click', copyMemoToClipboard);
+  $('#btn-share').addEventListener('click', shareMemo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
   $('#btn-delete').addEventListener('click', confirmDelete);
+  $('#memo-sort').addEventListener('change', (e) => { memoSortKey = e.target.value; renderMemoList(); });
+  $('#btn-select-mode').addEventListener('click', toggleSelectMode);
+  $('#btn-bulk-delete').addEventListener('click', bulkDelete);
+  $('#btn-bulk-move').addEventListener('click', bulkMove);
+  $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
   $('#menu-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
@@ -1119,6 +1129,7 @@ function updateFavButton(memo) {
 function showEditor(memo) {
   editorToolbar.style.display = 'flex';
   editorContainer.style.display = 'flex';
+  $('#char-count').style.display = 'block';
   emptyState.style.display = 'none';
   titleInput.value = memo.title;
   editor.value = memo.content;
@@ -1126,6 +1137,7 @@ function showEditor(memo) {
   redoStack = [];
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
+  updateCharCount();
   applyViewerMode(!!memo.viewerMode);
 }
 
@@ -1133,6 +1145,7 @@ function hideEditor() {
   cleanupEmptyMemo();
   editorToolbar.style.display = 'none';
   editorContainer.style.display = 'none';
+  $('#char-count').style.display = 'none';
   emptyState.style.display = 'flex';
 }
 
@@ -1234,6 +1247,7 @@ function onEditorInput() {
   scheduleUndoSnapshot(memo);
   memo.content = editor.value;
   memo.updatedAt = Date.now();
+  updateCharCount();
   scheduleAutoSave();
 }
 
@@ -1351,6 +1365,99 @@ function performRedo() {
   memo.updatedAt = Date.now();
   scheduleAutoSave();
   showToast('되살리기 완료');
+}
+
+// ── Char Count ──
+function updateCharCount() {
+  const el = $('#char-count');
+  if (!el) return;
+  const len = editor.value.length;
+  el.textContent = len.toLocaleString() + '자';
+}
+
+// ── Copy & Share ──
+function copyMemoToClipboard() {
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  const text = (memo.title ? memo.title + '\n\n' : '') + memo.content;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('클립보드에 복사됨');
+  }).catch(() => {
+    showToast('복사 실패');
+  });
+}
+
+function shareMemo() {
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  const text = (memo.title ? memo.title + '\n\n' : '') + memo.content;
+  if (navigator.share) {
+    navigator.share({ title: memo.title || 'Moon\'s Notes', text }).catch(() => {});
+  } else {
+    // Web Share API 미지원 시 클립보드 복사 대체
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('공유 미지원 환경 — 클립보드에 복사됨');
+    }).catch(() => {
+      showToast('공유 실패');
+    });
+  }
+}
+
+// ── Select Mode & Bulk Actions ──
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedMemos.clear();
+  $('#btn-select-mode').classList.toggle('active', selectMode);
+  $('#bulk-actions').style.display = selectMode ? 'flex' : 'none';
+  renderMemoList();
+}
+
+function bulkDelete() {
+  if (selectedMemos.size === 0) { showToast('선택된 메모가 없습니다'); return; }
+  if (!confirm(selectedMemos.size + '개 메모를 삭제하시겠습니까?')) return;
+  for (const id of selectedMemos) {
+    const memo = memos.find((m) => m.id === id);
+    if (memo) trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
+  }
+  memos = memos.filter((m) => !selectedMemos.has(m.id));
+  if (selectedMemos.has(currentId)) { currentId = null; hideEditor(); }
+  selectedMemos.clear();
+  saveLocalData();
+  renderAll();
+  scheduleSyncToDropbox();
+  showToast('삭제되었습니다');
+}
+
+function bulkMove() {
+  if (selectedMemos.size === 0) { showToast('선택된 메모가 없습니다'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  let opts = '<option value="">-- 폴더 없음 --</option>';
+  const topFolders = folders.filter((f) => !f.parentId && !f.dormant).sort(sortBySortOrder);
+  for (const f of topFolders) {
+    opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
+    const children = getChildFolders(f.id);
+    for (const c of children) {
+      opts += '<option value="' + c.id + '">　' + escapeHtml(c.name) + '</option>';
+    }
+  }
+  overlay.innerHTML = '<div class="modal-box"><p>' + selectedMemos.size + '개 메모를 이동할 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bm-ok">이동</button> <button class="btn btn-secondary" id="bm-cancel">취소</button></div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#bm-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#bm-ok').onclick = () => {
+    const folder = overlay.querySelector('select').value || null;
+    for (const id of selectedMemos) {
+      const m = memos.find((x) => x.id === id);
+      if (m) { m.folder = folder; m.updatedAt = Date.now(); }
+    }
+    selectedMemos.clear();
+    overlay.remove();
+    saveLocalData();
+    renderAll();
+    scheduleSyncToDropbox();
+    showToast('이동되었습니다');
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Render ──
@@ -1544,6 +1651,15 @@ function renderMemoList() {
     );
   }
 
+  // 정렬
+  if (memoSortKey === 'title') {
+    filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko'));
+  } else if (memoSortKey === 'createdAt') {
+    filtered.sort((a, b) => b.createdAt - a.createdAt);
+  } else {
+    filtered.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
   // 폴더 보기일 때(전체 보기가 아닐 때) 즐겨찾기 상단 고정
   if (currentFolder !== null && !query) {
     const favs = filtered.filter((m) => m.favorite);
@@ -1559,8 +1675,10 @@ function renderMemoList() {
       const date = formatDate(m.updatedAt);
       const active = m.id === currentId ? 'active' : '';
       const favIcon = m.favorite ? '<span class="memo-item-fav">★</span>' : '';
+      const checkbox = selectMode ? '<input type="checkbox" class="memo-item-checkbox" data-check="' + m.id + '"' + (selectedMemos.has(m.id) ? ' checked' : '') + '>' : '';
       return `
         <div class="memo-item ${active}" data-id="${m.id}">
+          ${checkbox}
           ${favIcon}
           <div class="memo-item-info">
             <div class="memo-item-title">${escapeHtml(title)}</div>
@@ -1571,10 +1689,25 @@ function renderMemoList() {
     })
     .join('');
 
+  // 선택 모드: 체크박스 이벤트
+  memoList.querySelectorAll('.memo-item-checkbox').forEach((cb) => {
+    cb.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const id = cb.dataset.check;
+      if (cb.checked) selectedMemos.add(id); else selectedMemos.delete(id);
+    });
+    cb.addEventListener('click', (e) => e.stopPropagation());
+  });
+
   memoList.querySelectorAll('.memo-item').forEach((el) => {
     let clickTimer = null;
-    el.addEventListener('click', () => {
-      if (clickTimer) return; // 더블클릭 대기 중이면 무시
+    el.addEventListener('click', (e) => {
+      if (selectMode) {
+        const cb = el.querySelector('.memo-item-checkbox');
+        if (cb && e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        return;
+      }
+      if (clickTimer) return;
       clickTimer = setTimeout(() => {
         clickTimer = null;
         const memo = memos.find((m) => m.id === el.dataset.id);
@@ -1583,6 +1716,7 @@ function renderMemoList() {
       }, 250);
     });
     el.addEventListener('dblclick', () => {
+      if (selectMode) return;
       clearTimeout(clickTimer);
       clickTimer = null;
       const id = el.dataset.id;
