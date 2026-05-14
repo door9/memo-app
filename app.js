@@ -1185,6 +1185,7 @@ async function loadMemoInEditor(memo) {
     syncToDropbox().catch(() => {});
   }
   // 온라인이면 최신 데이터를 먼저 받아온 뒤 열기
+  syncFailedForCurrentMemo = false;
   if (accessToken) {
     try {
       setSyncStatus('syncing', '동기화 중...');
@@ -1202,6 +1203,7 @@ async function loadMemoInEditor(memo) {
       if (!memo) { showToast('해당 메모가 삭제되었습니다'); renderAll(); return; }
     } catch {
       setSyncStatus('error', '동기화 실패');
+      syncFailedForCurrentMemo = true;
     }
   }
   offlineCopyId = null;
@@ -1211,6 +1213,7 @@ async function loadMemoInEditor(memo) {
 }
 
 let offlineCopyId = null; // 오프라인 복사본 추적
+let syncFailedForCurrentMemo = false; // 현재 메모 열기 시 동기화 실패 여부
 
 function updateFolderSelect(selectedFolder) {
   let options = '<option value="">-- 폴더 없음 --</option>';
@@ -1257,7 +1260,7 @@ function onEditorInput() {
   let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
   // 오프라인 상태에서 편집 시 복사본 생성
-  if ((!accessToken || !navigator.onLine) && !offlineCopyId) {
+  if ((!accessToken || syncFailedForCurrentMemo) && !offlineCopyId) {
     memo = createOfflineCopy(memo);
   }
   scheduleUndoSnapshot(memo);
@@ -1270,7 +1273,7 @@ function onEditorInput() {
 function onTitleInput() {
   let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
-  if ((!accessToken || !navigator.onLine) && !offlineCopyId) {
+  if ((!accessToken || syncFailedForCurrentMemo) && !offlineCopyId) {
     memo = createOfflineCopy(memo);
   }
   memo.title = titleInput.value;
