@@ -421,7 +421,7 @@ html, body {
   border: none;
   color: var(--text);
   font-family: 'Gulim', '굴림', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 15px !important;
+  font-size: 14px !important;
   line-height: 1.7;
   resize: none;
   outline: none;
