@@ -87,6 +87,7 @@ function init() {
   $('#btn-fav').addEventListener('click', toggleFavorite);
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-redo').addEventListener('click', performRedo);
+  $('#btn-find').addEventListener('click', toggleFindReplace);
   $('#btn-copy').addEventListener('click', copyMemoToClipboard);
   $('#btn-share').addEventListener('click', shareMemo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
@@ -96,6 +97,11 @@ function init() {
   $('#btn-bulk-delete').addEventListener('click', bulkDelete);
   $('#btn-bulk-move').addEventListener('click', bulkMove);
   $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
+  $('#find-input').addEventListener('input', findInMemo);
+  $('#find-next').addEventListener('click', () => findNavigate(1));
+  $('#find-prev').addEventListener('click', () => findNavigate(-1));
+  $('#replace-one').addEventListener('click', replaceOne);
+  $('#replace-all').addEventListener('click', replaceAllInMemo);
   $('#menu-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
@@ -1137,8 +1143,11 @@ function showEditor(memo) {
   redoStack = [];
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
+  updateMemoDates(memo);
   updateCharCount();
   applyViewerMode(!!memo.viewerMode);
+  // 찾기/바꾸기 패널 닫기
+  $('#find-replace-bar').style.display = 'none';
 }
 
 function hideEditor() {
@@ -1146,6 +1155,8 @@ function hideEditor() {
   editorToolbar.style.display = 'none';
   editorContainer.style.display = 'none';
   $('#char-count').style.display = 'none';
+  $('#find-replace-bar').style.display = 'none';
+  $('#memo-dates').style.display = 'none';
   emptyState.style.display = 'flex';
 }
 
@@ -1373,6 +1384,101 @@ function updateCharCount() {
   if (!el) return;
   const len = editor.value.length;
   el.textContent = len.toLocaleString() + '자';
+}
+
+// ── Memo Dates ──
+function updateMemoDates(memo) {
+  const el = $('#memo-dates');
+  if (!el || !memo) return;
+  const fmt = (ts) => {
+    const d = new Date(ts);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
+  el.textContent = '작성: ' + fmt(memo.createdAt) + '　수정: ' + fmt(memo.updatedAt);
+  el.style.display = 'flex';
+}
+
+// ── Find & Replace ──
+let findMatches = [];
+let findIndex = -1;
+
+function toggleFindReplace() {
+  const bar = $('#find-replace-bar');
+  const visible = bar.style.display !== 'none';
+  bar.style.display = visible ? 'none' : 'flex';
+  if (!visible) {
+    $('#find-input').value = '';
+    $('#replace-input').value = '';
+    $('#find-count').textContent = '';
+    findMatches = [];
+    findIndex = -1;
+    $('#find-input').focus();
+  }
+}
+
+function findInMemo() {
+  const keyword = $('#find-input').value;
+  const content = editor.value;
+  findMatches = [];
+  findIndex = -1;
+  if (!keyword) { $('#find-count').textContent = ''; return; }
+  let idx = 0;
+  const lower = content.toLowerCase();
+  const keyLower = keyword.toLowerCase();
+  while ((idx = lower.indexOf(keyLower, idx)) !== -1) {
+    findMatches.push(idx);
+    idx += keyLower.length;
+  }
+  $('#find-count').textContent = findMatches.length + '건';
+  if (findMatches.length > 0) findNavigate(1);
+}
+
+function findNavigate(dir) {
+  if (findMatches.length === 0) return;
+  findIndex += dir;
+  if (findIndex >= findMatches.length) findIndex = 0;
+  if (findIndex < 0) findIndex = findMatches.length - 1;
+  const pos = findMatches[findIndex];
+  const keyword = $('#find-input').value;
+  editor.focus();
+  editor.setSelectionRange(pos, pos + keyword.length);
+  $('#find-count').textContent = (findIndex + 1) + '/' + findMatches.length;
+}
+
+function replaceOne() {
+  const keyword = $('#find-input').value;
+  const replacement = $('#replace-input').value;
+  if (!keyword || findMatches.length === 0) return;
+  if (findIndex < 0) findIndex = 0;
+  const pos = findMatches[findIndex];
+  const before = editor.value.substring(0, pos);
+  const after = editor.value.substring(pos + keyword.length);
+  editor.value = before + replacement + after;
+  const memo = memos.find((m) => m.id === currentId);
+  if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+  saveLocalData();
+  scheduleSyncToDropbox();
+  updateCharCount();
+  findInMemo(); // 재검색
+}
+
+function replaceAllInMemo() {
+  const keyword = $('#find-input').value;
+  const replacement = $('#replace-input').value;
+  if (!keyword) return;
+  const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const count = (editor.value.match(regex) || []).length;
+  if (count === 0) { showToast('일치하는 항목 없음'); return; }
+  editor.value = editor.value.replace(regex, replacement);
+  const memo = memos.find((m) => m.id === currentId);
+  if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+  saveLocalData();
+  scheduleSyncToDropbox();
+  updateCharCount();
+  findMatches = [];
+  findIndex = -1;
+  $('#find-count').textContent = count + '건 바꿈';
+  showToast(count + '건 바꿨습니다');
 }
 
 // ── Copy & Share ──
