@@ -1257,7 +1257,7 @@ function onEditorInput() {
   let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
   // 오프라인 상태에서 편집 시 복사본 생성
-  if (!accessToken && !offlineCopyId) {
+  if ((!accessToken || !navigator.onLine) && !offlineCopyId) {
     memo = createOfflineCopy(memo);
   }
   scheduleUndoSnapshot(memo);
@@ -1270,7 +1270,7 @@ function onEditorInput() {
 function onTitleInput() {
   let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
-  if (!accessToken && !offlineCopyId) {
+  if ((!accessToken || !navigator.onLine) && !offlineCopyId) {
     memo = createOfflineCopy(memo);
   }
   memo.title = titleInput.value;
