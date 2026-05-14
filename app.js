@@ -1145,6 +1145,12 @@ function cleanupEmptyMemo() {
 }
 
 function loadMemoInEditor(memo) {
+  // 글 전환 시 대기 중인 동기화를 즉시 실행
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    syncToDropbox().catch(() => {});
+  }
   cleanupEmptyMemo();
   currentId = memo.id;
   showEditor(memo);
