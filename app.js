@@ -1144,18 +1144,41 @@ function cleanupEmptyMemo() {
   }
 }
 
-function loadMemoInEditor(memo) {
+async function loadMemoInEditor(memo) {
   // 글 전환 시 대기 중인 동기화를 즉시 실행
   if (syncTimer) {
     clearTimeout(syncTimer);
     syncTimer = null;
     syncToDropbox().catch(() => {});
   }
+  // 온라인이면 최신 데이터를 먼저 받아온 뒤 열기
+  if (accessToken) {
+    try {
+      setSyncStatus('syncing', '동기화 중...');
+      const remote = await dbxDownload();
+      if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
+        if (Array.isArray(remote.deletedIds)) deletedIds = mergeDeletedIds(deletedIds, remote.deletedIds);
+        if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
+        if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
+        if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+      }
+      saveLocalData();
+      setSyncStatus('synced', '동기화 완료');
+      // 동기화 후 최신 memo 객체 다시 조회
+      memo = memos.find((m) => m.id === memo.id);
+      if (!memo) { showToast('해당 메모가 삭제되었습니다'); renderAll(); return; }
+    } catch {
+      setSyncStatus('error', '동기화 실패');
+    }
+  }
   cleanupEmptyMemo();
+  offlineCopyId = null;
   currentId = memo.id;
   showEditor(memo);
   renderMemoList();
 }
+
+let offlineCopyId = null; // 오프라인 복사본 추적
 
 function updateFolderSelect(selectedFolder) {
   let options = '<option value="">-- 폴더 없음 --</option>';
@@ -1178,9 +1201,33 @@ function onFolderSelectChange() {
   scheduleAutoSave();
 }
 
+function createOfflineCopy(memo) {
+  if (offlineCopyId) return memos.find((m) => m.id === offlineCopyId);
+  const title = (memo.title || formatCreatedAt(memo.createdAt) + ' 새 글') + ' (Offline Work)';
+  const copy = {
+    id: crypto.randomUUID(),
+    title,
+    content: memo.content,
+    folder: memo.folder,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  memos.unshift(copy);
+  currentId = copy.id;
+  offlineCopyId = copy.id;
+  titleInput.value = copy.title;
+  saveLocalData();
+  renderMemoList();
+  return copy;
+}
+
 function onEditorInput() {
-  const memo = memos.find((m) => m.id === currentId);
+  let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
+  // 오프라인 상태에서 편집 시 복사본 생성
+  if (!accessToken && !offlineCopyId) {
+    memo = createOfflineCopy(memo);
+  }
   scheduleUndoSnapshot(memo);
   memo.content = editor.value;
   memo.updatedAt = Date.now();
@@ -1188,8 +1235,11 @@ function onEditorInput() {
 }
 
 function onTitleInput() {
-  const memo = memos.find((m) => m.id === currentId);
+  let memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
+  if (!accessToken && !offlineCopyId) {
+    memo = createOfflineCopy(memo);
+  }
   memo.title = titleInput.value;
   memo.updatedAt = Date.now();
   scheduleAutoSave();
