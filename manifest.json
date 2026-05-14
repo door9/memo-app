@@ -1,6 +1,6 @@
 {
-  "name": "My Memo",
-  "short_name": "Memo",
+  "name": "Moon's Notes",
+  "short_name": "Moon's Notes",
   "description": "Dropbox와 동기화되는 개인 메모 앱",
   "id": "/memo-app/",
   "start_url": "/memo-app/",
