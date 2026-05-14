@@ -35,6 +35,19 @@
         <button class="btn btn-fav-filter" id="btn-fav-filter" title="즐겨찾기 필터">☆</button>
         <button class="btn btn-secondary" id="btn-folder-toggle" title="폴더 필터">📁 전체</button>
       </div>
+      <div id="sidebar-actions-row2">
+        <select id="memo-sort" title="정렬">
+          <option value="updatedAt">수정일순</option>
+          <option value="createdAt">생성일순</option>
+          <option value="title">제목순</option>
+        </select>
+        <button class="btn btn-select-mode" id="btn-select-mode" title="선택 모드">☑</button>
+      </div>
+      <div id="bulk-actions" style="display:none">
+        <button class="btn btn-secondary" id="btn-bulk-move">📁 이동</button>
+        <button class="btn btn-primary" id="btn-bulk-delete">🗑 삭제</button>
+        <button class="btn btn-secondary" id="btn-bulk-cancel">취소</button>
+      </div>
     </div>
     <div id="folder-dropdown" class="folder-dropdown" style="display:none">
       <div id="folder-list"></div>
@@ -56,6 +69,8 @@
           <button class="btn-icon" id="btn-fav" title="즐겨찾기">☆</button>
           <button class="btn-icon" id="btn-undo" title="되돌리기">↩</button>
           <button class="btn-icon" id="btn-redo" title="되살리기">↪</button>
+          <button class="btn-icon" id="btn-copy" title="복사">📋</button>
+          <button class="btn-icon" id="btn-share" title="공유">📤</button>
           <button class="btn-icon" id="btn-viewer" title="보기 모드">📖</button>
           <button class="btn-icon" id="btn-delete" title="삭제">🗑</button>
         </div>
@@ -65,6 +80,7 @@
     <div id="editor-container" style="display:none">
       <textarea id="editor" placeholder="Hello, there?"></textarea>
     </div>
+    <div id="char-count" style="display:none"></div>
     <div id="empty-state">
       <div class="icon">📝</div>
       <div>There you are!</div>
