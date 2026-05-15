@@ -416,11 +416,14 @@ function mergeFolders(local, remote) {
 }
 
 function mergeTrash(local, remote) {
+  const permDelIds = new Set(deletedIds.map((d) => d.id || d));
   const map = new Map();
-  for (const t of remote) map.set(t.data.id + '_' + t.type, t);
+  for (const t of remote) {
+    if (!permDelIds.has(t.data.id)) map.set(t.data.id + '_' + t.type, t);
+  }
   for (const t of local) {
     const key = t.data.id + '_' + t.type;
-    if (!map.has(key)) map.set(key, t);
+    if (!map.has(key) && !permDelIds.has(t.data.id)) map.set(key, t);
   }
   return Array.from(map.values()).sort((a, b) => b.deletedAt - a.deletedAt);
 }
@@ -1040,7 +1043,7 @@ function showTrashView() {
           for (const t of trash) deletedIds.push({ id: t.data.id, at: Date.now() });
           trash = [];
           saveLocalData();
-          scheduleSyncToDropbox();
+          syncToDropbox().catch(() => {});
           render();
           showToast('휴지통을 비웠습니다');
         }
@@ -1073,7 +1076,7 @@ function showTrashView() {
           deletedIds.push({ id: item.data.id, at: Date.now() });
           trash.splice(idx, 1);
           saveLocalData();
-          scheduleSyncToDropbox();
+          syncToDropbox().catch(() => {});
           render();
           showToast('영구 삭제되었습니다');
         }
