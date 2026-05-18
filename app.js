@@ -1,5 +1,6 @@
 // ── Config ──
 const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun';
+const DROPBOX_CLIENT_SECRET = 'x9tu1nql7ul9lqd';
 const DROPBOX_FILE = '/memo-app/memos.json';
 const BACKUP_DIR = '/memo-app/backups';
 const BACKUP_MAX = 30;
@@ -225,6 +226,7 @@ async function handleOAuthCallback() {
         code,
         grant_type: 'authorization_code',
         client_id: DROPBOX_CLIENT_ID,
+        client_secret: DROPBOX_CLIENT_SECRET,
         redirect_uri: REDIRECT_URI,
         code_verifier: codeVerifier,
       }),
@@ -257,6 +259,7 @@ async function refreshAccessToken() {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
         client_id: DROPBOX_CLIENT_ID,
+        client_secret: DROPBOX_CLIENT_SECRET,
       }),
     });
     if (!res.ok) {
