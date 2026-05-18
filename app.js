@@ -233,8 +233,6 @@ async function handleOAuthCallback() {
     });
     if (!res.ok) throw new Error('token exchange failed: ' + res.status);
     const data = await res.json();
-    console.log('Token exchange response keys:', Object.keys(data));
-    console.log('Has refresh_token:', !!data.refresh_token);
     accessToken = data.access_token;
     refreshToken = data.refresh_token || null;
     isOnline = true;
