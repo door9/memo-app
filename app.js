@@ -2,14 +2,14 @@
 const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun';
 const DROPBOX_FILE = '/memo-app/memos.json';
 const BACKUP_DIR = '/memo-app/backups';
-const BACKUP_MAX = 10;
+const BACKUP_MAX = 30;
 const REDIRECT_URI = location.origin + location.pathname;
 
 // ── State ──
 let memos = [];
 let folders = [];
 let trash = []; // 휴지통: { type: 'memo'|'folder', data: {...}, deletedAt: timestamp }
-let deletedIds = []; // 영구 삭제된 항목: { id, at } (동기화 시 복귀 차단, 90일 후 자동 정리)
+let deletedIds = []; // 영구 삭제된 항목: { id, at } (동기화 시 복귀 차단, 30일 후 자동 정리)
 let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
@@ -62,13 +62,16 @@ function init() {
 
   if (accessToken) {
     showApp();
-    syncFromDropbox();
+    syncFromDropbox().then(() => checkAutoBackup());
+  } else {
+    // 오프라인 모드: 백업 필요 플래그만 저장
+    markAutoBackupPending();
   }
 
-  // 네트워크 복구 시 자동 동기화
+  // 네트워크 복구 시 자동 동기화 + 보류된 자동 백업 실행
   window.addEventListener('online', () => {
     if (accessToken) {
-      syncFromDropbox();
+      syncFromDropbox().then(() => checkAutoBackupPending());
     }
   });
 
@@ -342,10 +345,80 @@ async function pruneBackups() {
     .filter((e) => e['.tag'] === 'file' && e.name.startsWith('backup_'))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  // 10개 초과 시 오래된 것부터 삭제
+  // 30개 초과 시 오래된 것부터 삭제
   while (backups.length > BACKUP_MAX) {
     const old = backups.shift();
     await dbxDelete(old.path_lower);
+  }
+}
+
+// ── Auto Backup ──
+function getTodayKST() {
+  const now = new Date();
+  // KST = UTC+9
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+
+function markAutoBackupPending() {
+  const today = getTodayKST();
+  const lastDate = localStorage.getItem('auto_backup_date');
+  if (lastDate !== today) {
+    localStorage.setItem('auto_backup_pending', 'true');
+  }
+}
+
+async function checkAutoBackup() {
+  if (!accessToken) return;
+  const today = getTodayKST();
+  const lastDate = localStorage.getItem('auto_backup_date');
+  if (lastDate === today) return; // 오늘 이미 백업함
+
+  // Dropbox에 오늘 날짜 자동 백업 파일이 있는지 확인
+  try {
+    const entries = await dbxListFolder(BACKUP_DIR);
+    const todayTag = today.replace(/-/g, '');
+    const alreadyExists = entries.some((e) =>
+      e['.tag'] === 'file' && e.name.includes(todayTag) && e.name.includes('(auto backup)')
+    );
+    if (alreadyExists) {
+      localStorage.setItem('auto_backup_date', today);
+      return;
+    }
+    await performAutoBackup(today);
+  } catch (e) {
+    console.error('Auto backup check error:', e);
+  }
+}
+
+async function checkAutoBackupPending() {
+  if (!accessToken) return;
+  const pending = localStorage.getItem('auto_backup_pending');
+  if (pending !== 'true') return;
+  localStorage.removeItem('auto_backup_pending');
+  await checkAutoBackup();
+}
+
+async function performAutoBackup(today) {
+  try {
+    const now = new Date();
+    const ts = now.getFullYear()
+      + String(now.getMonth() + 1).padStart(2, '0')
+      + String(now.getDate()).padStart(2, '0')
+      + '_' + String(now.getHours()).padStart(2, '0')
+      + String(now.getMinutes()).padStart(2, '0')
+      + String(now.getSeconds()).padStart(2, '0');
+    const backupPath = BACKUP_DIR + '/backup_' + ts + ' (auto backup).json';
+    const obj = { memos, folders };
+    if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
+    const data = JSON.stringify(obj, null, 2);
+
+    await dbxUploadTo(backupPath, data);
+    await pruneBackups();
+    localStorage.setItem('auto_backup_date', today);
+    showToast('자동 백업 완료');
+  } catch (e) {
+    console.error('Auto backup error:', e);
   }
 }
 
