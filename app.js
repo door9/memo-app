@@ -13,6 +13,7 @@ let deletedIds = []; // 영구 삭제된 항목: { id, at } (동기화 시 복�
 let currentId = null;
 let currentFolder = null; // null = all
 let accessToken = localStorage.getItem('dbx_token') || null;
+let refreshToken = localStorage.getItem('dbx_refresh') || null;
 let isOnline = !!accessToken;
 let viewerMode = false;
 let favFilterActive = false;
@@ -45,7 +46,7 @@ const emptyState = $('#empty-state');
 // ── Init ──
 document.addEventListener('DOMContentLoaded', init);
 
-function init() {
+async function init() {
   // 모바일 세로 모드 고정
   try {
     if (screen.orientation && screen.orientation.lock) {
@@ -53,7 +54,7 @@ function init() {
     }
   } catch (e) {}
 
-  handleOAuthCallback();
+  await handleOAuthCallback();
   loadLocalData();
 
   // URL 파라미터로 특정 메모 열기 (새 창)
@@ -161,40 +162,121 @@ function init() {
   }
 }
 
-// ── OAuth ──
-function loginDropbox() {
+// ── OAuth (PKCE) ──
+function generateCodeVerifier() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function generateCodeChallenge(verifier) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function loginDropbox() {
   const state = crypto.randomUUID();
+  const codeVerifier = generateCodeVerifier();
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
   sessionStorage.setItem('oauth_state', state);
+  sessionStorage.setItem('code_verifier', codeVerifier);
   const params = new URLSearchParams({
     client_id: DROPBOX_CLIENT_ID,
     redirect_uri: REDIRECT_URI,
-    response_type: 'token',
-    token_access_type: 'legacy',
+    response_type: 'code',
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
+    token_access_type: 'offline',
     scope: 'files.content.read files.content.write files.metadata.read files.metadata.write',
     state,
   });
   location.href = 'https://www.dropbox.com/oauth2/authorize?' + params;
 }
 
-function handleOAuthCallback() {
-  const hash = location.hash.substring(1);
-  if (!hash) return;
-  const params = new URLSearchParams(hash);
-  const token = params.get('access_token');
-  const state = params.get('state');
-  if (token && state === sessionStorage.getItem('oauth_state')) {
-    accessToken = token;
+async function handleOAuthCallback() {
+  // PKCE code flow: code comes in query string
+  const urlParams = new URLSearchParams(location.search);
+  const code = urlParams.get('code');
+  const state = urlParams.get('state');
+  if (!code || state !== sessionStorage.getItem('oauth_state')) {
+    // Fallback: legacy implicit flow (hash-based token)
+    const hash = location.hash.substring(1);
+    if (!hash) return;
+    const hashParams = new URLSearchParams(hash);
+    const token = hashParams.get('access_token');
+    const hState = hashParams.get('state');
+    if (token && hState === sessionStorage.getItem('oauth_state')) {
+      accessToken = token;
+      isOnline = true;
+      localStorage.setItem('dbx_token', token);
+      sessionStorage.removeItem('oauth_state');
+      history.replaceState(null, '', location.pathname);
+    }
+    return;
+  }
+
+  // Exchange code for tokens
+  const codeVerifier = sessionStorage.getItem('code_verifier');
+  try {
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        grant_type: 'authorization_code',
+        client_id: DROPBOX_CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        code_verifier: codeVerifier,
+      }),
+    });
+    if (!res.ok) throw new Error('token exchange failed: ' + res.status);
+    const data = await res.json();
+    accessToken = data.access_token;
+    refreshToken = data.refresh_token || null;
     isOnline = true;
-    localStorage.setItem('dbx_token', token);
+    localStorage.setItem('dbx_token', accessToken);
+    if (refreshToken) localStorage.setItem('dbx_refresh', refreshToken);
     sessionStorage.removeItem('oauth_state');
+    sessionStorage.removeItem('code_verifier');
     history.replaceState(null, '', location.pathname);
+  } catch (e) {
+    console.error('Token exchange error:', e);
+    showToast('로그인 실패. 다시 시도해주세요.');
+  }
+}
+
+async function refreshAccessToken() {
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: DROPBOX_CLIENT_ID,
+      }),
+    });
+    if (!res.ok) {
+      console.error('Token refresh failed:', res.status);
+      return false;
+    }
+    const data = await res.json();
+    accessToken = data.access_token;
+    localStorage.setItem('dbx_token', accessToken);
+    return true;
+  } catch (e) {
+    console.error('Token refresh error:', e);
+    return false;
   }
 }
 
 function logout() {
   accessToken = null;
+  refreshToken = null;
   isOnline = false;
   localStorage.removeItem('dbx_token');
+  localStorage.removeItem('dbx_refresh');
   location.reload();
 }
 
@@ -217,7 +299,7 @@ function confirmLogout() {
 }
 
 // ── Dropbox API ──
-async function dbxUpload(content) {
+async function dbxUpload(content, retried) {
   const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
     method: 'POST',
     headers: {
@@ -232,6 +314,9 @@ async function dbxUpload(content) {
     body: content,
   });
   if (res.status === 401) {
+    if (!retried && await refreshAccessToken()) {
+      return dbxUpload(content, true);
+    }
     showToast('Dropbox 인증 만료. 다시 로그인해주세요.');
     logout();
     throw new Error('auth expired');
@@ -240,7 +325,7 @@ async function dbxUpload(content) {
   return res.json();
 }
 
-async function dbxDownload() {
+async function dbxDownload(retried) {
   const res = await fetch('https://content.dropboxapi.com/2/files/download', {
     method: 'POST',
     headers: {
@@ -250,6 +335,9 @@ async function dbxDownload() {
   });
   if (res.status === 409 || res.status === 404) return null;
   if (res.status === 401) {
+    if (!retried && await refreshAccessToken()) {
+      return dbxDownload(true);
+    }
     showToast('Dropbox 인증 만료. 다시 로그인해주세요.');
     logout();
     throw new Error('auth expired');
@@ -297,7 +385,7 @@ async function createBackup() {
   }
 }
 
-async function dbxUploadTo(path, content) {
+async function dbxUploadTo(path, content, retried) {
   const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
     method: 'POST',
     headers: {
@@ -307,12 +395,15 @@ async function dbxUploadTo(path, content) {
     },
     body: content,
   });
-  if (res.status === 401) { logout(); throw new Error('auth expired'); }
+  if (res.status === 401) {
+    if (!retried && await refreshAccessToken()) return dbxUploadTo(path, content, true);
+    logout(); throw new Error('auth expired');
+  }
   if (!res.ok) throw new Error('upload failed: ' + res.status);
   return res.json();
 }
 
-async function dbxListFolder(path) {
+async function dbxListFolder(path, retried) {
   const res = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
     method: 'POST',
     headers: {
@@ -322,12 +413,16 @@ async function dbxListFolder(path) {
     body: JSON.stringify({ path, recursive: false }),
   });
   if (res.status === 409 || res.status === 404) return [];
+  if (res.status === 401) {
+    if (!retried && await refreshAccessToken()) return dbxListFolder(path, true);
+    logout(); throw new Error('auth expired');
+  }
   if (!res.ok) throw new Error('list failed: ' + res.status);
   const data = await res.json();
   return data.entries || [];
 }
 
-async function dbxDelete(path) {
+async function dbxDelete(path, retried) {
   const res = await fetch('https://api.dropboxapi.com/2/files/delete_v2', {
     method: 'POST',
     headers: {
@@ -336,6 +431,10 @@ async function dbxDelete(path) {
     },
     body: JSON.stringify({ path }),
   });
+  if (res.status === 401) {
+    if (!retried && await refreshAccessToken()) return dbxDelete(path, true);
+    logout(); throw new Error('auth expired');
+  }
   if (!res.ok) throw new Error('delete failed: ' + res.status);
 }
 
