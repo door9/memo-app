@@ -1312,7 +1312,6 @@ function toggleFavorite() {
   if (!memo) return;
   memo.favorite = !memo.favorite;
   memo.favoritedAt = memo.favorite ? Date.now() : null;
-  memo.updatedAt = Date.now();
   updateFavButton(memo);
   saveLocalData();
   renderAll();
@@ -1436,7 +1435,6 @@ function onFolderSelectChange() {
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
   memo.folder = folderSelect.value || null;
-  memo.updatedAt = Date.now();
   scheduleAutoSave();
 }
 
@@ -1779,7 +1777,7 @@ function bulkMove() {
     const folder = overlay.querySelector('select').value || null;
     for (const id of selectedMemos) {
       const m = memos.find((x) => x.id === id);
-      if (m) { m.folder = folder; m.updatedAt = Date.now(); }
+      if (m) { m.folder = folder; }
     }
     selectedMemos.clear();
     overlay.remove();
