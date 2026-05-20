@@ -117,8 +117,7 @@ async function init() {
   $('#memo-sort').addEventListener('change', (e) => { memoSortKey = e.target.value; renderMemoList(); });
   $('#btn-select-mode').addEventListener('click', toggleSelectMode);
   $('#btn-bulk-delete').addEventListener('click', bulkDelete);
-  $('#btn-bulk-move').addEventListener('click', bulkMove);
-  $('#btn-bulk-folder-move').addEventListener('click', bulkFolderMove);
+  $('#btn-bulk-move').addEventListener('click', bulkMoveUnified);
   $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
   $('#find-input').addEventListener('input', findInMemo);
   $('#find-next').addEventListener('click', () => findNavigate(1));
@@ -1751,12 +1750,16 @@ function toggleSelectMode() {
 }
 
 function bulkDelete() {
-  if (selectedMemos.size === 0) { showToast('선택된 메모가 없습니다'); return; }
-  const cnt = selectedMemos.size;
+  const hasMemos = selectedMemos.size > 0;
+  const hasFolders = selectedFolders.size > 0;
+  if (!hasMemos && !hasFolders) { showToast('선택된 항목이 없습니다'); return; }
+  if (hasMemos && hasFolders) { showToast('메모와 폴더를 동시에 삭제할 수 없습니다. 하나만 선택해주세요.'); return; }
+
+  const label = hasMemos ? selectedMemos.size + '개 메모' : selectedFolders.size + '개 폴더';
   // 1차 확인
   const o1 = document.createElement('div');
   o1.className = 'modal-overlay';
-  o1.innerHTML = `<div class="modal-box"><p>${cnt}개 메모를 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel">취소</button> <button class="btn btn-primary" id="bd-ok">삭제</button></div>`;
+  o1.innerHTML = `<div class="modal-box"><p>${label}를 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel">취소</button> <button class="btn btn-primary" id="bd-ok">삭제</button></div>`;
   document.body.appendChild(o1);
   o1.querySelector('#bd-cancel').onclick = () => o1.remove();
   o1.addEventListener('click', (e) => { if (e.target === o1) o1.remove(); });
@@ -1765,19 +1768,26 @@ function bulkDelete() {
     // 2차 확인
     const o2 = document.createElement('div');
     o2.className = 'modal-overlay';
-    o2.innerHTML = `<div class="modal-box"><p>${cnt}개 메모를 정말 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel2">취소</button> <button class="btn btn-primary" id="bd-ok2">삭제</button></div>`;
+    o2.innerHTML = `<div class="modal-box"><p>${label}를 정말 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel2">취소</button> <button class="btn btn-primary" id="bd-ok2">삭제</button></div>`;
     document.body.appendChild(o2);
     o2.querySelector('#bd-cancel2').onclick = () => o2.remove();
     o2.addEventListener('click', (e) => { if (e.target === o2) o2.remove(); });
     o2.querySelector('#bd-ok2').onclick = () => {
       o2.remove();
-      for (const id of selectedMemos) {
-        const memo = memos.find((m) => m.id === id);
-        if (memo) trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
+      if (hasMemos) {
+        for (const id of selectedMemos) {
+          const memo = memos.find((m) => m.id === id);
+          if (memo) trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
+        }
+        memos = memos.filter((m) => !selectedMemos.has(m.id));
+        if (selectedMemos.has(currentId)) { currentId = null; hideEditor(); }
+        selectedMemos.clear();
+      } else {
+        for (const id of selectedFolders) {
+          deleteFolder(id);
+        }
+        selectedFolders.clear();
       }
-      memos = memos.filter((m) => !selectedMemos.has(m.id));
-      if (selectedMemos.has(currentId)) { currentId = null; hideEditor(); }
-      selectedMemos.clear();
       saveLocalData();
       renderAll();
       scheduleSyncToDropbox();
@@ -1786,73 +1796,77 @@ function bulkDelete() {
   };
 }
 
-function bulkMove() {
-  if (selectedMemos.size === 0) { showToast('선택된 메모가 없습니다'); return; }
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  let opts = '<option value="">-- 폴더 없음 --</option>';
-  const topFolders = folders.filter((f) => !f.parentId && !f.dormant).sort(sortBySortOrder);
-  for (const f of topFolders) {
-    opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
-    const children = getChildFolders(f.id);
-    for (const c of children) {
-      opts += '<option value="' + c.id + '">　' + escapeHtml(c.name) + '</option>';
-    }
-  }
-  overlay.innerHTML = '<div class="modal-box"><p>' + selectedMemos.size + '개 메모를 이동할 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bm-ok">이동</button> <button class="btn btn-secondary" id="bm-cancel">취소</button></div></div>';
-  document.body.appendChild(overlay);
-  overlay.querySelector('#bm-cancel').onclick = () => overlay.remove();
-  overlay.querySelector('#bm-ok').onclick = () => {
-    const folder = overlay.querySelector('select').value || null;
-    for (const id of selectedMemos) {
-      const m = memos.find((x) => x.id === id);
-      if (m) { m.folder = folder; }
-    }
-    selectedMemos.clear();
-    overlay.remove();
-    saveLocalData();
-    renderAll();
-    scheduleSyncToDropbox();
-    showToast('이동되었습니다');
-  };
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-}
+function bulkMoveUnified() {
+  const hasMemos = selectedMemos.size > 0;
+  const hasFolders = selectedFolders.size > 0;
+  if (!hasMemos && !hasFolders) { showToast('선택된 항목이 없습니다'); return; }
+  if (hasMemos && hasFolders) { showToast('메모와 폴더를 동시에 이동할 수 없습니다. 하나만 선택해주세요.'); return; }
 
-function bulkFolderMove() {
-  if (selectedFolders.size === 0) { showToast('선택된 폴더가 없습니다'); return; }
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  // 이동 대상에서 자기 자신과 자기 하위폴더는 제외
-  const excludeIds = new Set(selectedFolders);
-  for (const id of selectedFolders) {
-    getChildFolders(id).forEach((c) => excludeIds.add(c.id));
-  }
-  let opts = '<option value="__top__">-- 최상위 (상위폴더 없음) --</option>';
-  const topFolders = folders.filter((f) => !f.parentId && !f.dormant && !excludeIds.has(f.id)).sort(sortBySortOrder);
-  for (const f of topFolders) {
-    opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
-  }
-  overlay.innerHTML = '<div class="modal-box"><p>' + selectedFolders.size + '개 폴더를 이동할 상위 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bf-ok">이동</button> <button class="btn btn-secondary" id="bf-cancel">취소</button></div></div>';
-  document.body.appendChild(overlay);
-  overlay.querySelector('#bf-cancel').onclick = () => overlay.remove();
-  overlay.querySelector('#bf-ok').onclick = () => {
-    const target = overlay.querySelector('select').value;
-    const newParent = target === '__top__' ? null : target;
-    for (const id of selectedFolders) {
-      const f = folders.find((x) => x.id === id);
-      if (f) {
-        f.parentId = newParent;
-        f.sortOrder = nextSortOrder(newParent);
+  if (hasMemos) {
+    // 메모 이동
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    let opts = '<option value="">-- 폴더 없음 --</option>';
+    const topFolders = folders.filter((f) => !f.parentId && !f.dormant).sort(sortBySortOrder);
+    for (const f of topFolders) {
+      opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
+      const children = getChildFolders(f.id);
+      for (const c of children) {
+        opts += '<option value="' + c.id + '">　' + escapeHtml(c.name) + '</option>';
       }
     }
-    selectedFolders.clear();
-    overlay.remove();
-    saveLocalData();
-    renderAll();
-    scheduleSyncToDropbox();
-    showToast('폴더가 이동되었습니다');
-  };
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.innerHTML = '<div class="modal-box"><p>' + selectedMemos.size + '개 메모를 이동할 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bm-ok">이동</button> <button class="btn btn-secondary" id="bm-cancel">취소</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#bm-cancel').onclick = () => overlay.remove();
+    overlay.querySelector('#bm-ok').onclick = () => {
+      const folder = overlay.querySelector('select').value || null;
+      for (const id of selectedMemos) {
+        const m = memos.find((x) => x.id === id);
+        if (m) { m.folder = folder; }
+      }
+      selectedMemos.clear();
+      overlay.remove();
+      saveLocalData();
+      renderAll();
+      scheduleSyncToDropbox();
+      showToast('이동되었습니다');
+    };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  } else {
+    // 폴더 이동
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const excludeIds = new Set(selectedFolders);
+    for (const id of selectedFolders) {
+      getChildFolders(id).forEach((c) => excludeIds.add(c.id));
+    }
+    let opts = '<option value="__top__">-- 최상위 (상위폴더 없음) --</option>';
+    const topFolders = folders.filter((f) => !f.parentId && !f.dormant && !excludeIds.has(f.id)).sort(sortBySortOrder);
+    for (const f of topFolders) {
+      opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
+    }
+    overlay.innerHTML = '<div class="modal-box"><p>' + selectedFolders.size + '개 폴더를 이동할 상위 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bf-ok">이동</button> <button class="btn btn-secondary" id="bf-cancel">취소</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#bf-cancel').onclick = () => overlay.remove();
+    overlay.querySelector('#bf-ok').onclick = () => {
+      const target = overlay.querySelector('select').value;
+      const newParent = target === '__top__' ? null : target;
+      for (const id of selectedFolders) {
+        const f = folders.find((x) => x.id === id);
+        if (f) {
+          f.parentId = newParent;
+          f.sortOrder = nextSortOrder(newParent);
+        }
+      }
+      selectedFolders.clear();
+      overlay.remove();
+      saveLocalData();
+      renderAll();
+      scheduleSyncToDropbox();
+      showToast('폴더가 이동되었습니다');
+    };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  }
 }
 
 // ── Render ──
