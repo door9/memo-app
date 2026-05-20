@@ -1066,27 +1066,34 @@ function showRenameFolderDialog(id) {
 function confirmDeleteFolder(id) {
   const folder = folders.find((f) => f.id === id);
   if (!folder) return;
+  const name = escapeHtml(folder.name);
   const childFolders = getChildFolders(id);
   const allIds = [id, ...childFolders.map((f) => f.id)];
   const folderMemos = memos.filter((m) => allIds.includes(m.folder));
   const childNote = childFolders.length > 0 ? '하위 폴더 ' + childFolders.length + '개, ' : '';
+  const detailNote = (folderMemos.length > 0 || childFolders.length > 0) ? '<br><span style="font-size:0.85rem;color:var(--text2)">' + childNote + '메모 ' + folderMemos.length + '개도 휴지통으로 이동합니다.</span>' : '';
 
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-box">
-      <p>"${escapeHtml(folder.name)}" 폴더를 삭제할까요?${(folderMemos.length > 0 || childFolders.length > 0) ? '<br><span style="font-size:0.85rem;color:var(--text2)">' + childNote + '메모 ' + folderMemos.length + '개도 휴지통으로 이동합니다.</span>' : ''}</p>
-      <button class="btn btn-secondary" id="fdel-cancel">취소</button>
-      <button class="btn btn-primary" id="fdel-ok">삭제</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#fdel-cancel').onclick = () => overlay.remove();
-  overlay.querySelector('#fdel-ok').onclick = () => {
-    overlay.remove();
-    deleteFolder(id);
+  // 1차 확인
+  const o1 = document.createElement('div');
+  o1.className = 'modal-overlay';
+  o1.innerHTML = `<div class="modal-box"><p>"${name}" 폴더를 삭제할까요?${detailNote}</p><button class="btn btn-secondary" id="fdel-cancel">취소</button> <button class="btn btn-primary" id="fdel-ok">삭제</button></div>`;
+  document.body.appendChild(o1);
+  o1.querySelector('#fdel-cancel').onclick = () => o1.remove();
+  o1.addEventListener('click', (e) => { if (e.target === o1) o1.remove(); });
+  o1.querySelector('#fdel-ok').onclick = () => {
+    o1.remove();
+    // 2차 확인
+    const o2 = document.createElement('div');
+    o2.className = 'modal-overlay';
+    o2.innerHTML = `<div class="modal-box"><p>"${name}" 폴더를 정말 삭제할까요?</p><button class="btn btn-secondary" id="fdel-cancel2">취소</button> <button class="btn btn-primary" id="fdel-ok2">삭제</button></div>`;
+    document.body.appendChild(o2);
+    o2.querySelector('#fdel-cancel2').onclick = () => o2.remove();
+    o2.addEventListener('click', (e) => { if (e.target === o2) o2.remove(); });
+    o2.querySelector('#fdel-ok2').onclick = () => {
+      o2.remove();
+      deleteFolder(id);
+    };
   };
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 function deleteFolder(id) {
@@ -1159,27 +1166,29 @@ function deleteMemo(id) {
 function confirmDelete() {
   if (!currentId) return;
   const memo = memos.find((m) => m.id === currentId);
-  const title = memo?.title || '제목 없음';
+  const title = escapeHtml(memo?.title || '제목 없음');
 
-  const overlay = document.createElement('div');
-  overlay.className = 'delete-confirm';
-  overlay.innerHTML = `
-    <div class="delete-confirm-box">
-      <p>"${escapeHtml(title)}" 메모를 삭제할까요?</p>
-      <button class="btn btn-secondary" id="del-cancel">취소</button>
-      <button class="btn btn-primary" id="del-ok">삭제</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  overlay.querySelector('#del-cancel').onclick = () => overlay.remove();
-  overlay.querySelector('#del-ok').onclick = () => {
-    overlay.remove();
-    deleteMemo(currentId);
+  // 1차 확인
+  const o1 = document.createElement('div');
+  o1.className = 'delete-confirm';
+  o1.innerHTML = `<div class="delete-confirm-box"><p>"${title}" 메모를 삭제할까요?</p><button class="btn btn-secondary" id="del-cancel">취소</button> <button class="btn btn-primary" id="del-ok">삭제</button></div>`;
+  document.body.appendChild(o1);
+  o1.querySelector('#del-cancel').onclick = () => o1.remove();
+  o1.addEventListener('click', (e) => { if (e.target === o1) o1.remove(); });
+  o1.querySelector('#del-ok').onclick = () => {
+    o1.remove();
+    // 2차 확인
+    const o2 = document.createElement('div');
+    o2.className = 'delete-confirm';
+    o2.innerHTML = `<div class="delete-confirm-box"><p>"${title}" 메모를 정말 삭제할까요?</p><button class="btn btn-secondary" id="del-cancel2">취소</button> <button class="btn btn-primary" id="del-ok2">삭제</button></div>`;
+    document.body.appendChild(o2);
+    o2.querySelector('#del-cancel2').onclick = () => o2.remove();
+    o2.addEventListener('click', (e) => { if (e.target === o2) o2.remove(); });
+    o2.querySelector('#del-ok2').onclick = () => {
+      o2.remove();
+      deleteMemo(currentId);
+    };
   };
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
 }
 
 // ── Trash ──
@@ -1743,18 +1752,38 @@ function toggleSelectMode() {
 
 function bulkDelete() {
   if (selectedMemos.size === 0) { showToast('선택된 메모가 없습니다'); return; }
-  if (!confirm(selectedMemos.size + '개 메모를 삭제하시겠습니까?')) return;
-  for (const id of selectedMemos) {
-    const memo = memos.find((m) => m.id === id);
-    if (memo) trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
-  }
-  memos = memos.filter((m) => !selectedMemos.has(m.id));
-  if (selectedMemos.has(currentId)) { currentId = null; hideEditor(); }
-  selectedMemos.clear();
-  saveLocalData();
-  renderAll();
-  scheduleSyncToDropbox();
-  showToast('삭제되었습니다');
+  const cnt = selectedMemos.size;
+  // 1차 확인
+  const o1 = document.createElement('div');
+  o1.className = 'modal-overlay';
+  o1.innerHTML = `<div class="modal-box"><p>${cnt}개 메모를 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel">취소</button> <button class="btn btn-primary" id="bd-ok">삭제</button></div>`;
+  document.body.appendChild(o1);
+  o1.querySelector('#bd-cancel').onclick = () => o1.remove();
+  o1.addEventListener('click', (e) => { if (e.target === o1) o1.remove(); });
+  o1.querySelector('#bd-ok').onclick = () => {
+    o1.remove();
+    // 2차 확인
+    const o2 = document.createElement('div');
+    o2.className = 'modal-overlay';
+    o2.innerHTML = `<div class="modal-box"><p>${cnt}개 메모를 정말 삭제할까요?</p><button class="btn btn-secondary" id="bd-cancel2">취소</button> <button class="btn btn-primary" id="bd-ok2">삭제</button></div>`;
+    document.body.appendChild(o2);
+    o2.querySelector('#bd-cancel2').onclick = () => o2.remove();
+    o2.addEventListener('click', (e) => { if (e.target === o2) o2.remove(); });
+    o2.querySelector('#bd-ok2').onclick = () => {
+      o2.remove();
+      for (const id of selectedMemos) {
+        const memo = memos.find((m) => m.id === id);
+        if (memo) trash.push({ type: 'memo', data: { ...memo }, deletedAt: Date.now() });
+      }
+      memos = memos.filter((m) => !selectedMemos.has(m.id));
+      if (selectedMemos.has(currentId)) { currentId = null; hideEditor(); }
+      selectedMemos.clear();
+      saveLocalData();
+      renderAll();
+      scheduleSyncToDropbox();
+      showToast('삭제되었습니다');
+    };
+  };
 }
 
 function bulkMove() {
@@ -1874,7 +1903,6 @@ function renderFolderItem(f, isChild) {
       ${dormantIcon}
     </span>
     <span class="folder-actions-right">
-      <span class="folder-del" data-del="${f.id}">&times;</span>
     </span>
   </div>`;
 }
@@ -1994,7 +2022,6 @@ function renderFolderList() {
       if (actionsVisible) {
         if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
         if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
-        if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
         if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
         if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
         if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
