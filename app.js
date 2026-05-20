@@ -77,6 +77,13 @@ async function init() {
     }
   });
 
+  // 폴더 액션 메뉴 바깥 클릭 시 닫기
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.folder-item')) {
+      document.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
+    }
+  });
+
   $('#btn-login').addEventListener('click', loginDropbox);
   $('#btn-offline').addEventListener('click', (e) => {
     e.preventDefault();
@@ -1899,6 +1906,14 @@ function renderFolderList() {
 
     el.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
     el.addEventListener('touchmove', () => { clearTimeout(longPressTimer); });
+
+    // Right-click for PC: show action icons
+    el.addEventListener('contextmenu', (e) => {
+      if (!el.querySelector('.folder-actions-left')) return;
+      e.preventDefault();
+      folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
+      el.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.toggle('show'));
+    });
 
     el.addEventListener('click', (e) => {
       if (didLongPress) { didLongPress = false; return; }

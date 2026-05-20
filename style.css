@@ -322,8 +322,6 @@ html, body {
 .folder-actions-left { margin-left: 4px; }
 .folder-actions-right { margin-left: auto; }
 
-.folder-item:hover .folder-actions-left,
-.folder-item:hover .folder-actions-right,
 .folder-actions-left.show,
 .folder-actions-right.show { display: flex; }
 
