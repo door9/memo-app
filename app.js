@@ -2276,7 +2276,7 @@ function renderMemoList() {
       clearTimeout(clickTimer);
       clickTimer = null;
       const id = el.dataset.id;
-      window.open(location.pathname + '?memo=' + id, '_blank', 'width=600,height=700');
+      window.open(location.pathname + '?memo=' + id, '_blank', 'width=400,height=700');
     });
   });
 }
