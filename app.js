@@ -1918,13 +1918,17 @@ function renderFolderList() {
     el.addEventListener('click', (e) => {
       if (didLongPress) { didLongPress = false; return; }
 
-      if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
-      if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
-      if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
-      if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
-      if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
-      if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
-      if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
+      // 메뉴가 보이는 상태(.show)일 때만 버튼 동작
+      const actionsVisible = el.querySelector('.folder-actions-left.show');
+      if (actionsVisible) {
+        if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
+        if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
+        if (e.target.classList.contains('folder-del')) { confirmDeleteFolder(e.target.dataset.del); return; }
+        if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
+        if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
+        if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
+        if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
+      }
 
       const val = el.dataset.folder;
       if (val === '__all__') { currentFolder = null; }
