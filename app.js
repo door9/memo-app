@@ -20,6 +20,7 @@ let viewerMode = false;
 let favFilterActive = false;
 let selectMode = false;
 let selectedMemos = new Set();
+let selectedFolders = new Set();
 let memoSortKey = 'updatedAt';
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
@@ -116,6 +117,7 @@ async function init() {
   $('#btn-select-mode').addEventListener('click', toggleSelectMode);
   $('#btn-bulk-delete').addEventListener('click', bulkDelete);
   $('#btn-bulk-move').addEventListener('click', bulkMove);
+  $('#btn-bulk-folder-move').addEventListener('click', bulkFolderMove);
   $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
   $('#find-input').addEventListener('input', findInMemo);
   $('#find-next').addEventListener('click', () => findNavigate(1));
@@ -1723,9 +1725,12 @@ function shareMemo() {
 function toggleSelectMode() {
   selectMode = !selectMode;
   selectedMemos.clear();
+  selectedFolders.clear();
   $('#btn-select-mode').classList.toggle('active', selectMode);
   $('#bulk-actions').style.display = selectMode ? 'flex' : 'none';
+  if (selectMode) $('#folder-dropdown').style.display = 'block';
   renderMemoList();
+  renderFolderList();
 }
 
 function bulkDelete() {
@@ -1776,6 +1781,43 @@ function bulkMove() {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
+function bulkFolderMove() {
+  if (selectedFolders.size === 0) { showToast('선택된 폴더가 없습니다'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  // 이동 대상에서 자기 자신과 자기 하위폴더는 제외
+  const excludeIds = new Set(selectedFolders);
+  for (const id of selectedFolders) {
+    getChildFolders(id).forEach((c) => excludeIds.add(c.id));
+  }
+  let opts = '<option value="__top__">-- 최상위 (상위폴더 없음) --</option>';
+  const topFolders = folders.filter((f) => !f.parentId && !f.dormant && !excludeIds.has(f.id)).sort(sortBySortOrder);
+  for (const f of topFolders) {
+    opts += '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>';
+  }
+  overlay.innerHTML = '<div class="modal-box"><p>' + selectedFolders.size + '개 폴더를 이동할 상위 폴더를 선택하세요</p><select style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.9rem;">' + opts + '</select><div><button class="btn btn-primary" id="bf-ok">이동</button> <button class="btn btn-secondary" id="bf-cancel">취소</button></div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#bf-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('#bf-ok').onclick = () => {
+    const target = overlay.querySelector('select').value;
+    const newParent = target === '__top__' ? null : target;
+    for (const id of selectedFolders) {
+      const f = folders.find((x) => x.id === id);
+      if (f) {
+        f.parentId = newParent;
+        f.sortOrder = nextSortOrder(newParent);
+      }
+    }
+    selectedFolders.clear();
+    overlay.remove();
+    saveLocalData();
+    renderAll();
+    scheduleSyncToDropbox();
+    showToast('폴더가 이동되었습니다');
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 // ── Render ──
 function renderAll() {
   renderFolderList();
@@ -1811,7 +1853,9 @@ function renderFolderItem(f, isChild) {
   const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
   const childClass = isChild ? ' folder-item--child' : '';
   const dormantIcon = (!isChild) ? `<span class="folder-dormant" data-dormant="${f.id}" title="${f.dormant ? '휴면 해제' : '휴면 처리'}">${f.dormant ? '☀️' : '💤'}</span>` : '';
+  const folderCheckbox = selectMode ? `<input type="checkbox" class="folder-item-checkbox" data-folder-check="${f.id}"${selectedFolders.has(f.id) ? ' checked' : ''}>` : '';
   return `<div class="folder-item${childClass} ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
+    ${folderCheckbox}
     <span class="folder-item-name">${lockIcon ? lockIcon + ' ' : ''}${escapeHtml(f.name)} <span class="folder-count">(${count})</span></span>
     <span class="folder-actions-left">
       <span class="folder-move" data-moveup="${f.id}" title="위로">▲</span>
@@ -1890,6 +1934,16 @@ function renderFolderList() {
     });
   }
 
+  // 선택 모드: 폴더 체크박스 이벤트
+  folderList.querySelectorAll('.folder-item-checkbox').forEach((cb) => {
+    cb.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const id = cb.dataset.folderCheck;
+      if (cb.checked) selectedFolders.add(id); else selectedFolders.delete(id);
+    });
+    cb.addEventListener('click', (e) => e.stopPropagation());
+  });
+
   folderList.querySelectorAll('.folder-item').forEach((el) => {
     // Long press for mobile: show action icons
     let longPressTimer = null;
@@ -1917,6 +1971,13 @@ function renderFolderList() {
 
     el.addEventListener('click', (e) => {
       if (didLongPress) { didLongPress = false; return; }
+
+      // 선택 모드: 폴더 체크박스 토글
+      if (selectMode && el.dataset.folder && el.dataset.folder !== '__all__' && el.dataset.folder !== '__none__') {
+        const cb = el.querySelector('.folder-item-checkbox');
+        if (cb && e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        return;
+      }
 
       // 메뉴가 보이는 상태(.show)일 때만 버튼 동작
       const actionsVisible = el.querySelector('.folder-actions-left.show');
