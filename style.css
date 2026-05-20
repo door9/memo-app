@@ -204,9 +204,13 @@ html, body {
 .folder-item-checkbox {
   width: 18px;
   height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   accent-color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
+  display: inline-block;
+  margin-right: 6px;
 }
 
 /* Memo dates */
