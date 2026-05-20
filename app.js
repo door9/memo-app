@@ -58,6 +58,7 @@ async function init() {
 
   await handleOAuthCallback();
   loadLocalData();
+  cleanupEmptyMemo();
 
   // URL 파라미터로 특정 메모 열기 (새 창)
   const urlParams = new URLSearchParams(location.search);
@@ -1364,13 +1365,18 @@ function hideEditor() {
 }
 
 function cleanupEmptyMemo() {
-  if (!currentId) return;
-  const memo = memos.find((m) => m.id === currentId);
-  if (memo && !memo.title.trim() && !memo.content.trim()) {
-    memos = memos.filter((m) => m.id !== currentId);
-    currentId = null;
-    saveLocalData();
+  // 현재 편집 중이 아닌 빈 메모를 모두 삭제
+  const before = memos.length;
+  memos = memos.filter((m) => m.id === currentId || m.title.trim() || m.content.trim());
+  // 현재 편집 중인 메모도 빈 상태면 삭제
+  if (currentId) {
+    const memo = memos.find((m) => m.id === currentId);
+    if (memo && !memo.title.trim() && !memo.content.trim()) {
+      memos = memos.filter((m) => m.id !== currentId);
+      currentId = null;
+    }
   }
+  if (memos.length !== before) saveLocalData();
 }
 
 async function loadMemoInEditor(memo) {
