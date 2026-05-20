@@ -1960,6 +1960,7 @@ function renderFolderList() {
     let didLongPress = false;
 
     el.addEventListener('touchstart', (e) => {
+      if (selectMode) return; // 선택 모드에서는 롱프레스 비활성화
       didLongPress = false;
       longPressTimer = setTimeout(() => {
         didLongPress = true;
@@ -1973,6 +1974,7 @@ function renderFolderList() {
 
     // Right-click for PC: show action icons
     el.addEventListener('contextmenu', (e) => {
+      if (selectMode) return; // 선택 모드에서는 우클릭 메뉴 비활성화
       if (!el.querySelector('.folder-actions-left')) return;
       e.preventDefault();
       folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
@@ -1983,7 +1985,7 @@ function renderFolderList() {
       if (didLongPress) { didLongPress = false; return; }
 
       // 선택 모드: 폴더 체크박스 토글
-      if (selectMode && el.dataset.folder && el.dataset.folder !== '__all__' && el.dataset.folder !== '__none__') {
+      if (selectMode) {
         const cb = el.querySelector('.folder-item-checkbox');
         if (cb && e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
         return;
@@ -2009,14 +2011,14 @@ function renderFolderList() {
           showPasswordPrompt(val, () => {
             currentFolder = val;
             renderAll();
-            $('#folder-dropdown').style.display = 'none';
+            if (!selectMode) $('#folder-dropdown').style.display = 'none';
           });
           return;
         }
         currentFolder = val;
       }
       renderAll();
-      $('#folder-dropdown').style.display = 'none';
+      if (!selectMode) $('#folder-dropdown').style.display = 'none';
     });
   });
 }
