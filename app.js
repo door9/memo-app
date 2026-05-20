@@ -21,6 +21,9 @@ let favFilterActive = false;
 let selectMode = false;
 let selectedMemos = new Set();
 let selectedFolders = new Set();
+let lastCheckedMemoIndex = -1;
+let lastCheckedFolderIndex = -1;
+let touchSelectActive = false; // 모바일 롱프레스 범위 선택 활성 여부
 let memoSortKey = 'updatedAt';
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
@@ -1742,6 +1745,9 @@ function toggleSelectMode() {
   selectMode = !selectMode;
   selectedMemos.clear();
   selectedFolders.clear();
+  lastCheckedMemoIndex = -1;
+  lastCheckedFolderIndex = -1;
+  touchSelectActive = false;
   $('#btn-select-mode').classList.toggle('active', selectMode);
   $('#bulk-actions').style.display = selectMode ? 'flex' : 'none';
   if (selectMode) $('#folder-dropdown').style.display = 'block';
@@ -1985,6 +1991,7 @@ function renderFolderList() {
   }
 
   // 선택 모드: 폴더 체크박스 이벤트
+  const selectableFolderItems = Array.from(folderList.querySelectorAll('.folder-item[data-folder]')).filter((el) => el.querySelector('.folder-item-checkbox'));
   folderList.querySelectorAll('.folder-item-checkbox').forEach((cb) => {
     cb.addEventListener('change', (e) => {
       e.stopPropagation();
@@ -1993,6 +2000,46 @@ function renderFolderList() {
     });
     cb.addEventListener('click', (e) => e.stopPropagation());
   });
+
+  // 모바일 롱프레스 범위 선택 (폴더)
+  if (selectMode) {
+    let fTouchStartIdx = -1;
+    let fTouchLastIdx = -1;
+    selectableFolderItems.forEach((el, idx) => {
+      el.addEventListener('touchstart', (e) => {
+        touchSelectActive = false;
+        fTouchStartIdx = idx;
+        fTouchLastIdx = idx;
+        el._fLongPress = setTimeout(() => {
+          touchSelectActive = true;
+          const cb = el.querySelector('.folder-item-checkbox');
+          if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+          lastCheckedFolderIndex = idx;
+        }, 400);
+      }, { passive: true });
+      el.addEventListener('touchend', () => {
+        clearTimeout(el._fLongPress);
+        touchSelectActive = false;
+      });
+    });
+    folderList.addEventListener('touchmove', (e) => {
+      if (!touchSelectActive) return;
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!target) return;
+      const item = target.closest('.folder-item');
+      if (!item) return;
+      const idx = selectableFolderItems.indexOf(item);
+      if (idx === -1 || idx === fTouchLastIdx) return;
+      fTouchLastIdx = idx;
+      const start = Math.min(fTouchStartIdx, idx);
+      const end = Math.max(fTouchStartIdx, idx);
+      for (let i = start; i <= end; i++) {
+        const cb = selectableFolderItems[i].querySelector('.folder-item-checkbox');
+        if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      }
+    }, { passive: true });
+  }
 
   folderList.querySelectorAll('.folder-item').forEach((el) => {
     // Long press for mobile: show action icons
@@ -2014,7 +2061,7 @@ function renderFolderList() {
 
     // Right-click for PC: show action icons
     el.addEventListener('contextmenu', (e) => {
-      if (selectMode) return; // 선택 모드에서는 우클릭 메뉴 비활성화
+      if (selectMode) return;
       if (!el.querySelector('.folder-actions-left')) return;
       e.preventDefault();
       folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
@@ -2024,10 +2071,23 @@ function renderFolderList() {
     el.addEventListener('click', (e) => {
       if (didLongPress) { didLongPress = false; return; }
 
-      // 선택 모드: 폴더 체크박스 토글
+      // 선택 모드: 폴더 체크박스 토글 + Shift 범위 선택
       if (selectMode) {
         const cb = el.querySelector('.folder-item-checkbox');
-        if (cb && e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        if (!cb) return; // 전체/미분류는 체크박스 없음
+        const idx = selectableFolderItems.indexOf(el);
+        if (e.shiftKey && lastCheckedFolderIndex >= 0 && idx >= 0) {
+          const start = Math.min(lastCheckedFolderIndex, idx);
+          const end = Math.max(lastCheckedFolderIndex, idx);
+          for (let i = start; i <= end; i++) {
+            const c = selectableFolderItems[i].querySelector('.folder-item-checkbox');
+            if (c && !c.checked) { c.checked = true; c.dispatchEvent(new Event('change')); }
+          }
+          lastCheckedFolderIndex = idx;
+          return;
+        }
+        if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        if (idx >= 0) lastCheckedFolderIndex = idx;
         return;
       }
 
@@ -2130,6 +2190,7 @@ function renderMemoList() {
     .join('');
 
   // 선택 모드: 체크박스 이벤트
+  const memoItems = Array.from(memoList.querySelectorAll('.memo-item'));
   memoList.querySelectorAll('.memo-item-checkbox').forEach((cb) => {
     cb.addEventListener('change', (e) => {
       e.stopPropagation();
@@ -2139,12 +2200,67 @@ function renderMemoList() {
     cb.addEventListener('click', (e) => e.stopPropagation());
   });
 
-  memoList.querySelectorAll('.memo-item').forEach((el) => {
+  // 모바일 롱프레스 범위 선택
+  if (selectMode) {
+    let touchStartIndex = -1;
+    let touchLastIndex = -1;
+    memoItems.forEach((el, idx) => {
+      el.addEventListener('touchstart', (e) => {
+        if (!selectMode) return;
+        touchSelectActive = false;
+        touchStartIndex = idx;
+        touchLastIndex = idx;
+        el._longPressTimer = setTimeout(() => {
+          touchSelectActive = true;
+          // 시작점 선택
+          const cb = el.querySelector('.memo-item-checkbox');
+          if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+          lastCheckedMemoIndex = idx;
+        }, 400);
+      }, { passive: true });
+      el.addEventListener('touchend', () => {
+        clearTimeout(el._longPressTimer);
+        touchSelectActive = false;
+      });
+    });
+    memoList.addEventListener('touchmove', (e) => {
+      if (!touchSelectActive) return;
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!target) return;
+      const item = target.closest('.memo-item');
+      if (!item) return;
+      const idx = memoItems.indexOf(item);
+      if (idx === -1 || idx === touchLastIndex) return;
+      touchLastIndex = idx;
+      // 범위 내 모두 선택
+      const start = Math.min(touchStartIndex, idx);
+      const end = Math.max(touchStartIndex, idx);
+      for (let i = start; i <= end; i++) {
+        const cb = memoItems[i].querySelector('.memo-item-checkbox');
+        if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+      }
+    }, { passive: true });
+  }
+
+  memoList.querySelectorAll('.memo-item').forEach((el, idx) => {
     let clickTimer = null;
     el.addEventListener('click', (e) => {
       if (selectMode) {
+        // Shift+클릭 범위 선택
+        if (e.shiftKey && lastCheckedMemoIndex >= 0) {
+          const start = Math.min(lastCheckedMemoIndex, idx);
+          const end = Math.max(lastCheckedMemoIndex, idx);
+          for (let i = start; i <= end; i++) {
+            const cb = memoItems[i].querySelector('.memo-item-checkbox');
+            if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+          }
+          lastCheckedMemoIndex = idx;
+          return;
+        }
         const cb = el.querySelector('.memo-item-checkbox');
         if (cb && e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        lastCheckedMemoIndex = idx;
         return;
       }
       if (clickTimer) return;
