@@ -127,6 +127,16 @@ async function init() {
   $('#find-prev').addEventListener('click', () => findNavigate(-1));
   $('#replace-one').addEventListener('click', replaceOne);
   $('#replace-all').addEventListener('click', replaceAllInMemo);
+
+  // Ctrl+F → 앱 찾기/바꾸기 (브라우저 기본 동작 대체)
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if (!currentId) return; // 메모가 열려있지 않으면 무시
+      e.preventDefault();
+      toggleFindReplace();
+    }
+  });
+
   $('#menu-toggle').addEventListener('click', () => {
     $('#sidebar').classList.toggle('open');
   });
