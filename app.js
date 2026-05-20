@@ -670,9 +670,13 @@ function nextSortOrder(parentId) {
   return siblings.length === 0 ? 0 : Math.max(...siblings.map((f) => f.sortOrder ?? 0)) + 1;
 }
 
+function isVisibleMemo(m) {
+  return m.title.trim() || m.content.trim();
+}
+
 function getFolderMemoCount(folderId) {
   const childIds = getChildFolders(folderId).map((f) => f.id);
-  return memos.filter((m) => m.folder === folderId || childIds.includes(m.folder)).length;
+  return memos.filter((m) => (m.folder === folderId || childIds.includes(m.folder)) && isVisibleMemo(m)).length;
 }
 
 function getDormantFolderIds() {
@@ -1849,7 +1853,7 @@ function updateFolderToggleLabel() {
 }
 
 function renderFolderItem(f, isChild) {
-  const count = isChild ? memos.filter((m) => m.folder === f.id).length : getFolderMemoCount(f.id);
+  const count = isChild ? memos.filter((m) => m.folder === f.id && isVisibleMemo(m)).length : getFolderMemoCount(f.id);
   const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
   const childClass = isChild ? ' folder-item--child' : '';
   const dormantIcon = (!isChild) ? `<span class="folder-dormant" data-dormant="${f.id}" title="${f.dormant ? '휴면 해제' : '휴면 처리'}">${f.dormant ? '☀️' : '💤'}</span>` : '';
@@ -1874,7 +1878,7 @@ function renderFolderItem(f, isChild) {
 function renderFolderList() {
   const lockedIds = getLockedFolderIds();
   const dormantIds = getDormantFolderIds();
-  const allCount = memos.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder)).length;
+  const allCount = memos.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder) && isVisibleMemo(m)).length;
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
     <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
   </div>`;
@@ -1889,7 +1893,7 @@ function renderFolderList() {
     }
   }
 
-  const noFolderCount = memos.filter((m) => !m.folder).length;
+  const noFolderCount = memos.filter((m) => !m.folder && isVisibleMemo(m)).length;
   if (folders.length > 0) {
     html += `<div class="folder-item ${currentFolder === '__none__' ? 'active' : ''}" data-folder="__none__">
       <span class="folder-item-name">미분류 <span class="folder-count">(${noFolderCount})</span></span>
@@ -1899,7 +1903,7 @@ function renderFolderList() {
   // 휴면 폴더 섹션
   const dormantTopFolders = folders.filter((f) => !f.parentId && f.dormant).sort(sortBySortOrder);
   if (dormantTopFolders.length > 0) {
-    const dormantMemoCount = memos.filter((m) => dormantIds.has(m.folder)).length;
+    const dormantMemoCount = memos.filter((m) => dormantIds.has(m.folder) && isVisibleMemo(m)).length;
     html += `<div class="folder-dormant-toggle" id="dormant-toggle">
       <span>💤 휴면 폴더 <span class="folder-count">(${dormantMemoCount})</span></span>
       <span class="dormant-arrow">▶</span>
