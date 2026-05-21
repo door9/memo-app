@@ -1682,6 +1682,7 @@ function findCountOnly() {
   const content = editor.value;
   findMatches = [];
   findIndex = -1;
+  findAndGo._lastKeyword = null;
   if (!keyword) { $('#find-count').textContent = ''; return; }
   let idx = 0;
   const lower = content.toLowerCase();
@@ -1721,7 +1722,12 @@ function clearHighlight() {
 function findAndGo() {
   findAllMode = false;
   clearHighlight();
-  findCountOnly();
+  // 키워드가 바뀌었으면 재검색, 아니면 다음으로 이동
+  const keyword = $('#find-input').value;
+  if (findMatches.length === 0 || keyword.toLowerCase() !== (findAndGo._lastKeyword || '').toLowerCase()) {
+    findCountOnly();
+    findAndGo._lastKeyword = keyword;
+  }
   if (findMatches.length > 0) findNavigate(1);
 }
 
