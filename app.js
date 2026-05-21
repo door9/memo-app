@@ -1743,18 +1743,36 @@ function findAllAndGo() {
 function findNavigate(dir) {
   if (findMatches.length === 0) return;
   findAllMode = false;
-  clearHighlight();
   findIndex += dir;
   if (findIndex >= findMatches.length) findIndex = 0;
   if (findIndex < 0) findIndex = findMatches.length - 1;
   const pos = findMatches[findIndex];
   const keyword = $('#find-input').value;
   $('#find-count').textContent = (findIndex + 1) + '/' + findMatches.length;
-  // 모바일: 엔터 이벤트가 에디터로 전달되지 않도록 지연
-  setTimeout(() => {
-    editor.focus();
-    editor.setSelectionRange(pos, pos + keyword.length);
-  }, 50);
+  // 에디터에 포커스를 보내지 않고 하이라이트로 현재 위치 표시
+  highlightCurrentMatch(keyword, pos);
+  scrollEditorToPos(pos);
+}
+
+function highlightCurrentMatch(keyword, currentPos) {
+  const hl = $('#editor-highlight');
+  const text = editor.value;
+  const keyLen = keyword.length;
+  let result = '';
+  result += escHtml(text.substring(0, currentPos));
+  result += '<mark class="current">' + escHtml(text.substring(currentPos, currentPos + keyLen)) + '</mark>';
+  result += escHtml(text.substring(currentPos + keyLen)) + '\n';
+  hl.innerHTML = result;
+  hl.scrollTop = editor.scrollTop;
+}
+
+function scrollEditorToPos(pos) {
+  const textBefore = editor.value.substring(0, pos);
+  const lines = textBefore.split('\n').length - 1;
+  const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+  const targetScroll = lines * lineHeight - editor.clientHeight / 3;
+  editor.scrollTop = Math.max(0, targetScroll);
+  $('#editor-highlight').scrollTop = editor.scrollTop;
 }
 
 function replaceAction() {
