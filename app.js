@@ -28,6 +28,7 @@ let memoSortKey = 'updatedAt';
 let saveTimer = null;
 const unlockedFolders = new Set(); // 현재 세션에서 잠금 해제된 폴더
 let masterPasswordHash = null;
+let templates = [];
 let undoStack = [];
 let redoStack = [];
 const UNDO_MAX = 50;
@@ -87,6 +88,9 @@ async function init() {
     if (!e.target.closest('.folder-item')) {
       document.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
     }
+    if (!e.target.closest('#template-wrap')) {
+      $('#template-dropdown').style.display = 'none';
+    }
   });
 
   $('#btn-login').addEventListener('click', loginDropbox);
@@ -112,6 +116,8 @@ async function init() {
   $('#btn-undo').addEventListener('click', performUndo);
   $('#btn-redo').addEventListener('click', performRedo);
   $('#btn-toolbar-more').addEventListener('click', toggleToolbarMore);
+  $('#btn-template').addEventListener('click', toggleTemplateDropdown);
+  $('#btn-template-save').addEventListener('click', saveAsTemplate);
   $('#btn-find').addEventListener('click', toggleFindReplace);
   $('#btn-copy').addEventListener('click', copyMemoToClipboard);
   $('#btn-share').addEventListener('click', shareMemo);
@@ -572,6 +578,7 @@ async function syncFromDropbox() {
       if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
       if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
       if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+      if (Array.isArray(remote.templates)) templates = mergeTemplates(templates, remote.templates);
       if (remote.masterPassword && !masterPasswordHash) masterPasswordHash = remote.masterPassword;
     } else if (remote && Array.isArray(remote)) {
       memos = mergeMemos(memos, remote);
@@ -592,7 +599,7 @@ async function syncFromDropbox() {
 
 async function syncToDropbox() {
   if (!accessToken) return;
-  const obj = { memos, folders, trash, deletedIds };
+  const obj = { memos, folders, trash, deletedIds, templates };
   if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
   const data = JSON.stringify(obj, null, 2);
   await dbxUpload(data);
@@ -661,6 +668,7 @@ function saveLocalData() {
   localStorage.setItem('folders', JSON.stringify(folders));
   localStorage.setItem('trash', JSON.stringify(trash));
   localStorage.setItem('deletedIds', JSON.stringify(deletedIds));
+  localStorage.setItem('templates', JSON.stringify(templates));
   if (masterPasswordHash) localStorage.setItem('master_pw', masterPasswordHash);
   else localStorage.removeItem('master_pw');
 }
@@ -675,6 +683,8 @@ function loadLocalData() {
     if (td) trash = JSON.parse(td);
     const dd = localStorage.getItem('deletedIds');
     if (dd) deletedIds = JSON.parse(dd);
+    const tp = localStorage.getItem('templates');
+    if (tp) templates = JSON.parse(tp);
     masterPasswordHash = localStorage.getItem('master_pw') || null;
     // 마이그레이션: sortOrder 없는 폴더에 순번 부여
     folders.forEach((f, i) => { if (f.sortOrder === undefined) f.sortOrder = i; });
@@ -1434,6 +1444,7 @@ async function loadMemoInEditor(memo) {
         if (Array.isArray(remote.trash)) trash = mergeTrash(trash, remote.trash);
         if (Array.isArray(remote.memos)) memos = mergeMemos(memos, remote.memos);
         if (Array.isArray(remote.folders)) folders = mergeFolders(folders, remote.folders);
+        if (Array.isArray(remote.templates)) templates = mergeTemplates(templates, remote.templates);
       }
       saveLocalData();
       setSyncStatus('synced', '동기화 완료');
@@ -1777,6 +1788,103 @@ function scrollEditorToPos(pos) {
   const targetScroll = lines * lineHeight - editor.clientHeight / 3;
   editor.scrollTop = Math.max(0, targetScroll);
   $('#editor-highlight').scrollTop = editor.scrollTop;
+}
+
+// ── Templates ──
+function mergeTemplates(local, remote) {
+  const map = new Map();
+  for (const t of remote) map.set(t.id, t);
+  for (const t of local) {
+    const existing = map.get(t.id);
+    if (!existing || t.updatedAt > existing.updatedAt) map.set(t.id, t);
+  }
+  return Array.from(map.values()).filter((t) => !t.deleted).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function toggleTemplateDropdown() {
+  const dd = $('#template-dropdown');
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderTemplateList();
+}
+
+function renderTemplateList() {
+  const list = $('#template-list');
+  if (templates.length === 0) {
+    list.innerHTML = '<div class="template-empty">저장된 템플릿이 없습니다</div>';
+    return;
+  }
+  list.innerHTML = templates.map((t) =>
+    '<div class="template-item" data-id="' + t.id + '">' +
+    '<span class="template-item-name">' + escHtml(t.title || '(제목 없음)') + '</span>' +
+    '<button class="template-item-del" data-id="' + t.id + '" title="삭제">×</button>' +
+    '</div>'
+  ).join('');
+  list.querySelectorAll('.template-item-name').forEach((el) => {
+    el.addEventListener('click', () => {
+      const id = el.parentElement.dataset.id;
+      applyTemplate(id);
+    });
+  });
+  list.querySelectorAll('.template-item-del').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteTemplate(btn.dataset.id);
+    });
+  });
+}
+
+function saveAsTemplate() {
+  if (!currentId) { showToast('메모를 먼저 선택하세요'); return; }
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  const name = prompt('템플릿 이름을 입력하세요:', memo.title || '');
+  if (name === null) return;
+  const tpl = {
+    id: crypto.randomUUID(),
+    title: name.trim() || '(제목 없음)',
+    content: memo.content,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  templates.unshift(tpl);
+  saveLocalData();
+  scheduleSyncToDropbox();
+  renderTemplateList();
+  showToast('템플릿이 저장되었습니다');
+}
+
+function applyTemplate(templateId) {
+  const tpl = templates.find((t) => t.id === templateId);
+  if (!tpl) return;
+  $('#template-dropdown').style.display = 'none';
+  // 새 메모 생성 후 템플릿 내용 적용
+  const memo = {
+    id: crypto.randomUUID(),
+    title: tpl.title,
+    content: tpl.content,
+    folderId: currentFolder,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    favorite: false,
+  };
+  memos.unshift(memo);
+  currentId = memo.id;
+  saveLocalData();
+  renderAll();
+  showEditor(memo);
+  showToast('템플릿이 적용되었습니다');
+}
+
+function deleteTemplate(templateId) {
+  const tpl = templates.find((t) => t.id === templateId);
+  if (!tpl) return;
+  if (!confirm('"' + tpl.title + '" 템플릿을 삭제하시겠습니까?')) return;
+  templates = templates.filter((t) => t.id !== templateId);
+  saveLocalData();
+  scheduleSyncToDropbox();
+  renderTemplateList();
+  showToast('템플릿이 삭제되었습니다');
 }
 
 function replaceAction() {
