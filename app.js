@@ -169,6 +169,7 @@ async function init() {
   });
 
   editor.addEventListener('input', onEditorInput);
+  editor.addEventListener('scroll', () => { $('#editor-highlight').scrollTop = editor.scrollTop; });
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
@@ -1669,7 +1670,10 @@ function toggleFindReplace() {
     findMatches = [];
     findIndex = -1;
     findAllMode = false;
+    clearHighlight();
     $('#find-input').focus();
+  } else {
+    clearHighlight();
   }
 }
 
@@ -1689,8 +1693,34 @@ function findCountOnly() {
   $('#find-count').textContent = findMatches.length + '건';
 }
 
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateHighlight(keyword) {
+  const hl = $('#editor-highlight');
+  if (!keyword || findMatches.length === 0) { hl.innerHTML = ''; return; }
+  const text = editor.value;
+  const keyLen = keyword.length;
+  let result = '';
+  let lastEnd = 0;
+  for (const pos of findMatches) {
+    result += escHtml(text.substring(lastEnd, pos));
+    result += '<mark>' + escHtml(text.substring(pos, pos + keyLen)) + '</mark>';
+    lastEnd = pos + keyLen;
+  }
+  result += escHtml(text.substring(lastEnd)) + '\n';
+  hl.innerHTML = result;
+  hl.scrollTop = editor.scrollTop;
+}
+
+function clearHighlight() {
+  $('#editor-highlight').innerHTML = '';
+}
+
 function findAndGo() {
   findAllMode = false;
+  clearHighlight();
   findCountOnly();
   if (findMatches.length > 0) findNavigate(1);
 }
@@ -1698,8 +1728,8 @@ function findAndGo() {
 function findAllAndGo() {
   findAllMode = true;
   findCountOnly();
-  if (findMatches.length === 0) return;
-  // 모두 찾기: 전체 결과 수 표시
+  if (findMatches.length === 0) { clearHighlight(); return; }
+  updateHighlight($('#find-input').value);
   $('#find-count').textContent = findMatches.length + '건 전체 선택';
   showToast(findMatches.length + '건 찾음');
 }
@@ -1707,6 +1737,7 @@ function findAllAndGo() {
 function findNavigate(dir) {
   if (findMatches.length === 0) return;
   findAllMode = false;
+  clearHighlight();
   findIndex += dir;
   if (findIndex >= findMatches.length) findIndex = 0;
   if (findIndex < 0) findIndex = findMatches.length - 1;
@@ -1736,6 +1767,7 @@ function replaceAction() {
     findMatches = [];
     findIndex = -1;
     findAllMode = false;
+    clearHighlight();
     $('#find-count').textContent = count + '건 바꿈';
     showToast(count + '건 바꿨습니다');
   } else {
