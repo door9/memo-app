@@ -560,6 +560,8 @@ html, body {
   color: transparent;
   pointer-events: none;
   overflow-y: auto;
+  background: var(--card);
+  z-index: 0;
 }
 
 #editor-highlight mark {
@@ -571,7 +573,7 @@ html, body {
 #editor {
   flex: 1;
   padding: 20px;
-  background: var(--card);
+  background: transparent;
   border: none;
   color: var(--text);
   font-family: 'Gulim', '굴림', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -582,15 +584,7 @@ html, body {
   overflow-y: auto;
   word-break: break-word;
   position: relative;
-  background: transparent;
-}
-
-#editor-container::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--card);
-  z-index: -1;
+  z-index: 1;
 }
 
 #editor.viewer {
