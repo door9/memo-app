@@ -65,6 +65,13 @@
     <div id="editor-toolbar" style="display:none">
       <div id="toolbar-buttons">
         <select id="memo-folder-select" title="폴더 선택" tabindex="-1"></select>
+        <div id="template-wrap">
+          <button class="btn-icon" id="btn-template" title="템플릿">📄</button>
+          <div id="template-dropdown" style="display:none">
+            <div id="template-list"></div>
+            <button class="template-action-btn" id="btn-template-save">+ 현재 메모를 템플릿으로 저장</button>
+          </div>
+        </div>
         <div id="toolbar-right">
           <button class="btn-icon" id="btn-fav" title="즐겨찾기">☆</button>
           <button class="btn-icon" id="btn-undo" title="되돌리기">↩</button>
