@@ -1749,9 +1749,12 @@ function findNavigate(dir) {
   if (findIndex < 0) findIndex = findMatches.length - 1;
   const pos = findMatches[findIndex];
   const keyword = $('#find-input').value;
-  editor.focus();
-  editor.setSelectionRange(pos, pos + keyword.length);
   $('#find-count').textContent = (findIndex + 1) + '/' + findMatches.length;
+  // 모바일: 엔터 이벤트가 에디터로 전달되지 않도록 지연
+  setTimeout(() => {
+    editor.focus();
+    editor.setSelectionRange(pos, pos + keyword.length);
+  }, 50);
 }
 
 function replaceAction() {

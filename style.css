@@ -546,6 +546,7 @@ html, body {
   display: flex;
   overflow: hidden;
   position: relative;
+  background: var(--card);
 }
 
 #editor-highlight {
