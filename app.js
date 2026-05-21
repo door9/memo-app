@@ -1792,13 +1792,15 @@ function scrollEditorToPos(pos) {
 
 // ── Templates ──
 function mergeTemplates(local, remote) {
+  const permDelIds = new Set(deletedIds.map((d) => d.id || d));
   const map = new Map();
-  for (const t of remote) map.set(t.id, t);
+  for (const t of remote) { if (!permDelIds.has(t.id)) map.set(t.id, t); }
   for (const t of local) {
+    if (permDelIds.has(t.id)) continue;
     const existing = map.get(t.id);
     if (!existing || t.updatedAt > existing.updatedAt) map.set(t.id, t);
   }
-  return Array.from(map.values()).filter((t) => !t.deleted).sort((a, b) => b.createdAt - a.createdAt);
+  return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 function toggleTemplateDropdown() {
@@ -1880,6 +1882,7 @@ function deleteTemplate(templateId) {
   const tpl = templates.find((t) => t.id === templateId);
   if (!tpl) return;
   if (!confirm('"' + tpl.title + '" 템플릿을 삭제하시겠습니까?')) return;
+  deletedIds.push({ id: templateId, at: Date.now() });
   templates = templates.filter((t) => t.id !== templateId);
   saveLocalData();
   scheduleSyncToDropbox();
