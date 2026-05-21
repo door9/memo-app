@@ -122,7 +122,9 @@ async function init() {
   $('#btn-bulk-delete').addEventListener('click', bulkDelete);
   $('#btn-bulk-move').addEventListener('click', bulkMoveUnified);
   $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
-  $('#find-input').addEventListener('input', findInMemo);
+  $('#find-input').addEventListener('input', findCountOnly);
+  $('#find-btn').addEventListener('click', findAndGo);
+  $('#find-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findAndGo(); } });
   $('#find-next').addEventListener('click', () => findNavigate(1));
   $('#find-prev').addEventListener('click', () => findNavigate(-1));
   $('#replace-one').addEventListener('click', replaceOne);
@@ -1657,7 +1659,7 @@ function toggleFindReplace() {
   }
 }
 
-function findInMemo() {
+function findCountOnly() {
   const keyword = $('#find-input').value;
   const content = editor.value;
   findMatches = [];
@@ -1671,6 +1673,10 @@ function findInMemo() {
     idx += keyLower.length;
   }
   $('#find-count').textContent = findMatches.length + '건';
+}
+
+function findAndGo() {
+  findCountOnly();
   if (findMatches.length > 0) findNavigate(1);
 }
 
