@@ -545,6 +545,27 @@ html, body {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
+}
+
+#editor-highlight {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  padding: 20px;
+  font-family: 'Gulim', '굴림', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px !important;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: transparent;
+  pointer-events: none;
+  overflow-y: auto;
+}
+
+#editor-highlight mark {
+  background: #ffe066;
+  color: transparent;
+  border-radius: 2px;
 }
 
 #editor {
@@ -560,6 +581,16 @@ html, body {
   outline: none;
   overflow-y: auto;
   word-break: break-word;
+  position: relative;
+  background: transparent;
+}
+
+#editor-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--card);
+  z-index: -1;
 }
 
 #editor.viewer {
@@ -740,7 +771,7 @@ html, body {
   .memo-item-title { font-size: 0.92rem; }
   .memo-item-date { font-size: 0.75rem; }
   #memo-title-input { font-size: 19px; padding: 8px 10px; }
-  #editor { font-size: 17px !important; }
+  #editor, #editor-highlight { font-size: 17px !important; }
   #search-box { font-size: 0.92rem; }
   .btn { font-size: 0.9rem; }
   .folder-item { font-size: 0.92rem; }
