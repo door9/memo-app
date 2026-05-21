@@ -130,12 +130,24 @@ async function init() {
   $('#replace-one').addEventListener('click', replaceOne);
   $('#replace-all').addEventListener('click', replaceAllInMemo);
 
-  // Ctrl+F → 앱 찾기/바꾸기 (브라우저 기본 동작 대체)
+  // 키보드 단축키
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-      if (!currentId) return; // 메모가 열려있지 않으면 무시
+    if (!(e.ctrlKey || e.metaKey)) return;
+    // Ctrl+F → 앱 찾기/바꾸기
+    if (e.key === 'f') {
+      if (!currentId) return;
       e.preventDefault();
       toggleFindReplace();
+    }
+    // Ctrl+S → 저장 및 동기화
+    if (e.key === 's') {
+      e.preventDefault();
+      saveLocalData();
+      if (accessToken) {
+        syncToDropbox().then(() => showToast('저장 및 동기화 완료')).catch(() => showToast('동기화 실패'));
+      } else {
+        showToast('로컬에 저장됨');
+      }
     }
   });
 
