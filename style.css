@@ -692,6 +692,7 @@ html, body {
 .popup-mode #menu-toggle,
 .popup-mode #login-screen { display: none !important; }
 .popup-mode #app { display: flex !important; }
+.popup-mode #toolbar-buttons { padding-left: 0 !important; }
 
 /* Empty state */
 #empty-state {
