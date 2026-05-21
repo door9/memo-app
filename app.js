@@ -1730,7 +1730,7 @@ function findAllAndGo() {
   findCountOnly();
   if (findMatches.length === 0) { clearHighlight(); return; }
   updateHighlight($('#find-input').value);
-  $('#find-count').textContent = findMatches.length + '건 전체 선택';
+  $('#find-count').textContent = findMatches.length + '건 전체';
   showToast(findMatches.length + '건 찾음');
 }
 
