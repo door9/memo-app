@@ -1721,7 +1721,6 @@ function clearHighlight() {
 
 function findAndGo() {
   findAllMode = false;
-  clearHighlight();
   // 키워드가 바뀌었으면 재검색, 아니면 다음으로 이동
   const keyword = $('#find-input').value;
   if (findMatches.length === 0 || keyword.toLowerCase() !== (findAndGo._lastKeyword || '').toLowerCase()) {
@@ -1750,18 +1749,23 @@ function findNavigate(dir) {
   const keyword = $('#find-input').value;
   $('#find-count').textContent = (findIndex + 1) + '/' + findMatches.length;
   // 에디터에 포커스를 보내지 않고 하이라이트로 현재 위치 표시
-  highlightCurrentMatch(keyword, pos);
+  highlightAllWithCurrent(keyword, pos);
   scrollEditorToPos(pos);
 }
 
-function highlightCurrentMatch(keyword, currentPos) {
+function highlightAllWithCurrent(keyword, currentPos) {
   const hl = $('#editor-highlight');
   const text = editor.value;
   const keyLen = keyword.length;
   let result = '';
-  result += escHtml(text.substring(0, currentPos));
-  result += '<mark class="current">' + escHtml(text.substring(currentPos, currentPos + keyLen)) + '</mark>';
-  result += escHtml(text.substring(currentPos + keyLen)) + '\n';
+  let lastEnd = 0;
+  for (const pos of findMatches) {
+    result += escHtml(text.substring(lastEnd, pos));
+    const cls = pos === currentPos ? 'current' : '';
+    result += '<mark class="' + cls + '">' + escHtml(text.substring(pos, pos + keyLen)) + '</mark>';
+    lastEnd = pos + keyLen;
+  }
+  result += escHtml(text.substring(lastEnd)) + '\n';
   hl.innerHTML = result;
   hl.scrollTop = editor.scrollTop;
 }
