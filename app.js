@@ -124,11 +124,11 @@ async function init() {
   $('#btn-bulk-cancel').addEventListener('click', () => toggleSelectMode());
   $('#find-input').addEventListener('input', findCountOnly);
   $('#find-btn').addEventListener('click', findAndGo);
+  $('#find-all-btn').addEventListener('click', findAllAndGo);
   $('#find-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findAndGo(); } });
   $('#find-next').addEventListener('click', () => findNavigate(1));
   $('#find-prev').addEventListener('click', () => findNavigate(-1));
-  $('#replace-one').addEventListener('click', replaceOne);
-  $('#replace-all').addEventListener('click', replaceAllInMemo);
+  $('#replace-one').addEventListener('click', replaceAction);
 
   // 키보드 단축키
   document.addEventListener('keydown', (e) => {
@@ -1656,6 +1656,7 @@ function updateMemoDates(memo) {
 // ── Find & Replace ──
 let findMatches = [];
 let findIndex = -1;
+let findAllMode = false;
 
 function toggleFindReplace() {
   const bar = $('#find-replace-bar');
@@ -1667,6 +1668,7 @@ function toggleFindReplace() {
     $('#find-count').textContent = '';
     findMatches = [];
     findIndex = -1;
+    findAllMode = false;
     $('#find-input').focus();
   }
 }
@@ -1688,12 +1690,23 @@ function findCountOnly() {
 }
 
 function findAndGo() {
+  findAllMode = false;
   findCountOnly();
   if (findMatches.length > 0) findNavigate(1);
 }
 
+function findAllAndGo() {
+  findAllMode = true;
+  findCountOnly();
+  if (findMatches.length === 0) return;
+  // 모두 찾기: 전체 결과 수 표시
+  $('#find-count').textContent = findMatches.length + '건 전체 선택';
+  showToast(findMatches.length + '건 찾음');
+}
+
 function findNavigate(dir) {
   if (findMatches.length === 0) return;
+  findAllMode = false;
   findIndex += dir;
   if (findIndex >= findMatches.length) findIndex = 0;
   if (findIndex < 0) findIndex = findMatches.length - 1;
@@ -1704,40 +1717,45 @@ function findNavigate(dir) {
   $('#find-count').textContent = (findIndex + 1) + '/' + findMatches.length;
 }
 
-function replaceOne() {
+function replaceAction() {
   const keyword = $('#find-input').value;
   const replacement = $('#replace-input').value;
   if (!keyword || findMatches.length === 0) return;
-  if (findIndex < 0) findIndex = 0;
-  const pos = findMatches[findIndex];
-  const before = editor.value.substring(0, pos);
-  const after = editor.value.substring(pos + keyword.length);
-  editor.value = before + replacement + after;
-  const memo = memos.find((m) => m.id === currentId);
-  if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
-  saveLocalData();
-  scheduleSyncToDropbox();
-  updateCharCount();
-  findInMemo(); // 재검색
-}
 
-function replaceAllInMemo() {
-  const keyword = $('#find-input').value;
-  const replacement = $('#replace-input').value;
-  if (!keyword) return;
-  const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-  const count = (editor.value.match(regex) || []).length;
-  if (count === 0) { showToast('일치하는 항목 없음'); return; }
-  editor.value = editor.value.replace(regex, replacement);
-  const memo = memos.find((m) => m.id === currentId);
-  if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
-  saveLocalData();
-  scheduleSyncToDropbox();
-  updateCharCount();
-  findMatches = [];
-  findIndex = -1;
-  $('#find-count').textContent = count + '건 바꿈';
-  showToast(count + '건 바꿨습니다');
+  if (findAllMode) {
+    // 모두 찾기 상태 → 전체 바꾸기
+    const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const count = (editor.value.match(regex) || []).length;
+    if (count === 0) return;
+    editor.value = editor.value.replace(regex, replacement);
+    const memo = memos.find((m) => m.id === currentId);
+    if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+    saveLocalData();
+    scheduleSyncToDropbox();
+    updateCharCount();
+    findMatches = [];
+    findIndex = -1;
+    findAllMode = false;
+    $('#find-count').textContent = count + '건 바꿈';
+    showToast(count + '건 바꿨습니다');
+  } else {
+    // 찾기 상태 → 현재 1건 바꾸기
+    if (findIndex < 0) findIndex = 0;
+    const pos = findMatches[findIndex];
+    const before = editor.value.substring(0, pos);
+    const after = editor.value.substring(pos + keyword.length);
+    editor.value = before + replacement + after;
+    const memo = memos.find((m) => m.id === currentId);
+    if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+    saveLocalData();
+    scheduleSyncToDropbox();
+    updateCharCount();
+    findCountOnly(); // 재검색
+    if (findMatches.length > 0) {
+      if (findIndex >= findMatches.length) findIndex = 0;
+      findNavigate(0);
+    }
+  }
 }
 
 // ── Copy & Share ──
