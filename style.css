@@ -571,6 +571,10 @@ html, body {
   border-radius: 2px;
 }
 
+#editor-highlight mark.current {
+  background: #ff9632;
+}
+
 #editor {
   flex: 1;
   padding: 20px;
