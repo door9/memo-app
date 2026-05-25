@@ -596,6 +596,9 @@ html, body {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+#btn-toolbar-more {
   flex-shrink: 0;
 }
 
