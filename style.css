@@ -695,7 +695,10 @@ html, body {
 .popup-mode #menu-toggle,
 .popup-mode #login-screen { display: none !important; }
 .popup-mode #app { display: flex !important; }
-.popup-mode #toolbar-buttons { padding-left: 0 !important; }
+.popup-mode #toolbar-buttons { padding-left: 0 !important; flex-wrap: wrap; }
+/* 확장 시 overflow 제거 + toolbar-right를 투명 컨테이너로 해제하여 자연스러운 줄 바꿈 */
+.popup-mode #toolbar-buttons.expanded { overflow-x: visible; }
+.popup-mode #toolbar-buttons.expanded #toolbar-right { display: contents; }
 
 /* Empty state */
 #empty-state {
