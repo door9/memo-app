@@ -84,6 +84,18 @@ async function init() {
     }
   });
 
+  // 탭/창 닫힐 때 미저장 내용 강제 저장
+  window.addEventListener('beforeunload', () => {
+    if (currentId) {
+      const memo = memos.find((m) => m.id === currentId);
+      if (memo) {
+        memo.content = editor.value;
+        memo.title = titleInput.value;
+        saveLocalData();
+      }
+    }
+  });
+
   // 폴더 액션 메뉴 바깥 클릭 시 닫기
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.folder-item')) {
@@ -1517,7 +1529,8 @@ function onEditorInput() {
   memo.content = editor.value;
   memo.updatedAt = Date.now();
   updateCharCount();
-  scheduleAutoSave();
+  saveLocalData(); // localStorage는 즉시 저장 (탭 닫혀도 보존)
+  scheduleRenderAndSync();
 }
 
 function onTitleInput() {
@@ -1528,10 +1541,12 @@ function onTitleInput() {
   }
   memo.title = titleInput.value;
   memo.updatedAt = Date.now();
-  scheduleAutoSave();
+  saveLocalData(); // localStorage는 즉시 저장
+  scheduleRenderAndSync();
 }
 
-function scheduleAutoSave() {
+function scheduleRenderAndSync() {
+  // renderAll + Dropbox 동기화는 1.5초 디바운스
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 1500);
 }
