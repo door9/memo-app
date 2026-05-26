@@ -19,6 +19,7 @@ let isOnline = !!accessToken;
 let viewerMode = false;
 let favFilterActive = false;
 let selectMode = false;
+let folderListCollapsed = false;
 let selectedMemos = new Set();
 let selectedFolders = new Set();
 let lastCheckedMemoIndex = -1;
@@ -1963,6 +1964,7 @@ function shareMemo() {
 // ── Select Mode & Bulk Actions ──
 function toggleSelectMode() {
   selectMode = !selectMode;
+  if (!selectMode) folderListCollapsed = false;
   selectedMemos.clear();
   selectedFolders.clear();
   lastCheckedMemoIndex = -1;
@@ -2106,6 +2108,12 @@ function toggleFolderDropdown() {
   dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 }
 
+function toggleFolderListCollapse() {
+  folderListCollapsed = !folderListCollapsed;
+  $('#folder-dropdown').style.display = 'block'; // 드롭다운 자체는 항상 유지
+  renderFolderList();
+}
+
 function toggleFavFilter() {
   favFilterActive = !favFilterActive;
   const btn = $('#btn-fav-filter');
@@ -2151,10 +2159,16 @@ function renderFolderList() {
   const lockedIds = getLockedFolderIds();
   const dormantIds = getDormantFolderIds();
   const allCount = memos.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder) && isVisibleMemo(m)).length;
+  const collapseBtn = selectMode
+    ? `<button class="folder-collapse-btn">${folderListCollapsed ? '목록 펼치기' : '목록 접기'}</button>`
+    : '';
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
     <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
-    ${selectMode ? '<button class="folder-collapse-btn">목록 접기</button>' : ''}
+    ${collapseBtn}
   </div>`;
+
+  // 접힌 상태(선택 모드)에서는 전체 행만 표시, 펼쳐진 상태에서는 나머지 폴더 추가
+  if (!selectMode || !folderListCollapsed) {
 
   // 활성 폴더 (휴면이 아닌 폴더)
   const topFolders = folders.filter((f) => !f.parentId && !f.dormant).sort(sortBySortOrder);
@@ -2191,6 +2205,8 @@ function renderFolderList() {
     }
     html += `</div>`;
   }
+
+  } // end: !selectMode || !folderListCollapsed
 
   folderList.innerHTML = html;
   updateFolderToggleLabel();
@@ -2294,7 +2310,7 @@ function renderFolderList() {
 
       // 선택 모드: 폴더 체크박스 토글 + Shift 범위 선택
       if (selectMode) {
-        if (el.dataset.folder === '__all__') { toggleFolderDropdown(); return; }
+        if (el.dataset.folder === '__all__') { toggleFolderListCollapse(); return; }
         const cb = el.querySelector('.folder-item-checkbox');
         if (!cb) return; // 미분류는 체크박스 없음
         const idx = selectableFolderItems.indexOf(el);
