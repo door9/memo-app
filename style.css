@@ -848,7 +848,6 @@ html, body {
   .toolbar-extra.toolbar-show { display: flex !important; }
   select.toolbar-extra.toolbar-show { display: inline-block !important; }
   #btn-toolbar-more { display: flex; }
-  #toolbar-right.expanded { margin-left: 0; }
   #toolbar-buttons.expanded { padding-left: 0; overflow-x: auto; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
