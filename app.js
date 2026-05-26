@@ -2153,6 +2153,7 @@ function renderFolderList() {
   const allCount = memos.filter((m) => !lockedIds.includes(m.folder) && !dormantIds.has(m.folder) && isVisibleMemo(m)).length;
   let html = `<div class="folder-item ${currentFolder === null ? 'active' : ''}" data-folder="__all__">
     <span class="folder-item-name">전체 <span class="folder-count">(${allCount})</span></span>
+    ${selectMode ? '<button class="folder-collapse-btn">목록 접기</button>' : ''}
   </div>`;
 
   // 활성 폴더 (휴면이 아닌 폴더)
@@ -2293,8 +2294,9 @@ function renderFolderList() {
 
       // 선택 모드: 폴더 체크박스 토글 + Shift 범위 선택
       if (selectMode) {
+        if (el.dataset.folder === '__all__') { toggleFolderDropdown(); return; }
         const cb = el.querySelector('.folder-item-checkbox');
-        if (!cb) return; // 전체/미분류는 체크박스 없음
+        if (!cb) return; // 미분류는 체크박스 없음
         const idx = selectableFolderItems.indexOf(el);
         if (e.shiftKey && lastCheckedFolderIndex >= 0 && idx >= 0) {
           const start = Math.min(lastCheckedFolderIndex, idx);
