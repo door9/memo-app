@@ -848,14 +848,22 @@ html, body {
   .toolbar-extra.toolbar-show { display: flex !important; }
   select.toolbar-extra.toolbar-show { display: inline-block !important; }
   #btn-toolbar-more { display: flex; }
-  #toolbar-right.expanded { flex-wrap: wrap; }
-  #toolbar-buttons.expanded { padding-left: 0; flex-wrap: wrap; }
+  #toolbar-right.expanded { margin-left: 0; }
+  #toolbar-buttons.expanded { padding-left: 0; overflow-x: auto; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
 
   /* 모바일 에디터 툴바 */
   #memo-folder-select { max-width: 100px; font-size: 0.75rem; }
   .btn-icon { width: 42px; height: 42px; font-size: 1.15rem; }
+}
+
+/* 481~768px: 폴더 선택·템플릿은 공간이 있으므로 항상 표시 */
+@media (min-width: 481px) and (max-width: 768px) {
+  #memo-folder-select { display: inline-block !important; }
+  #template-wrap { display: flex !important; }
+  /* 더보기 펼쳐도 햄버거 버튼 자리(46px) 유지 */
+  #toolbar-buttons.expanded { padding-left: 46px; }
 }
 
 /* 터치 기기(실제 모바일)에서만 글자 크기 증가 */
