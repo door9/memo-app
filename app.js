@@ -68,6 +68,11 @@ async function init() {
   const urlParams = new URLSearchParams(location.search);
   const openMemoId = urlParams.get('memo');
 
+  // 새 창 모드는 URL 감지 즉시 적용 (햄버거 깜빡임·메모 미발견 시 노출 방지)
+  if (openMemoId) {
+    document.body.classList.add('popup-mode');
+  }
+
   if (accessToken) {
     showApp();
     syncFromDropbox().then(() => checkAutoBackup());
@@ -217,14 +222,12 @@ async function init() {
     }
   });
 
-  // 새 창으로 열린 경우 해당 메모 바로 표시
+  // 새 창으로 열린 경우 해당 메모 바로 표시 (popup-mode 클래스는 init 초반에 이미 적용됨)
   if (openMemoId) {
     const memo = memos.find((m) => m.id === openMemoId);
     if (memo) {
       if (!accessToken) { isOnline = false; showApp(); }
       loadMemoInEditor(memo);
-      // 새 창에서는 사이드바 숨기기
-      document.body.classList.add('popup-mode');
     }
   }
 }
