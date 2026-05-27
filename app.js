@@ -188,7 +188,10 @@ async function init() {
   });
 
   editor.addEventListener('input', onEditorInput);
-  editor.addEventListener('scroll', () => { $('#editor-highlight').scrollTop = editor.scrollTop; });
+  editor.addEventListener('scroll', () => {
+    $('#editor-highlight').scrollTop = editor.scrollTop;
+    handleEditorScroll();
+  });
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
@@ -1473,6 +1476,9 @@ async function loadMemoInEditor(memo) {
   currentId = memo.id;
   showEditor(memo);
   renderMemoList();
+  // 새 메모 열 때 툴바·제목 다시 표시
+  document.body.classList.remove('toolbar-hidden');
+  lastEditorScrollTop = 0;
 }
 
 let offlineCopyId = null; // 오프라인 복사본 추적
@@ -1543,6 +1549,24 @@ function onTitleInput() {
   memo.updatedAt = Date.now();
   saveLocalData(); // localStorage는 즉시 저장
   scheduleRenderAndSync();
+}
+
+// 에디터 스크롤 방향에 따라 툴바·제목 숨김/표시
+let lastEditorScrollTop = 0;
+function handleEditorScroll() {
+  const st = editor.scrollTop;
+  const delta = st - lastEditorScrollTop;
+  if (st < 20) {
+    // 상단 근처는 항상 표시
+    document.body.classList.remove('toolbar-hidden');
+  } else if (delta > 5) {
+    // 아래로 스크롤
+    document.body.classList.add('toolbar-hidden');
+  } else if (delta < -5) {
+    // 위로 스크롤
+    document.body.classList.remove('toolbar-hidden');
+  }
+  lastEditorScrollTop = st;
 }
 
 function scheduleRenderAndSync() {
