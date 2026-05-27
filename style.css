@@ -597,6 +597,18 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 400px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease, border-bottom-width 0.25s ease;
+}
+/* 본문 스크롤 다운 시 툴바·제목 접기 */
+body.toolbar-hidden #editor-toolbar {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  border-bottom-width: 0;
+  gap: 0;
 }
 
 #toolbar-buttons {
