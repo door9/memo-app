@@ -112,6 +112,10 @@ async function init() {
     isOnline = false;
     showApp();
   });
+  $('#toolbar-reveal').addEventListener('click', () => {
+    document.body.classList.remove('toolbar-hidden');
+    lastEditorScrollTop = editor.scrollTop;
+  });
   $('#btn-new').addEventListener('click', createMemo);
   $('#btn-backup').addEventListener('click', createBackup);
   $('#btn-folder-toggle').addEventListener('click', toggleFolderDropdown);
@@ -1563,18 +1567,9 @@ function handleEditorScroll() {
   if (Math.abs(delta) < 5) return;
 
   const isHidden = document.body.classList.contains('toolbar-hidden');
-  let stateChanged = false;
   if (delta > 0 && !isHidden) {
-    // 아래로 스크롤 → 숨김
+    // 아래로 스크롤 → 숨김 (펼치기는 ▼ 버튼 클릭으로만)
     document.body.classList.add('toolbar-hidden');
-    stateChanged = true;
-  } else if (delta < 0 && isHidden) {
-    // 위로 스크롤 → 표시
-    document.body.classList.remove('toolbar-hidden');
-    stateChanged = true;
-  }
-
-  if (stateChanged) {
     editorScrollLock = true;
     setTimeout(() => {
       editorScrollLock = false;

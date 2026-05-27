@@ -611,6 +611,23 @@ body.toolbar-hidden #editor-toolbar {
   gap: 0;
 }
 
+/* 메뉴 펼치기 버튼: 툴바가 숨겨졌을 때만 표시 */
+#toolbar-reveal {
+  display: none;
+  width: 100%;
+  background: var(--card);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 2px 0;
+  color: var(--text2);
+  font-size: 0.7rem;
+  cursor: pointer;
+  line-height: 1.2;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+#toolbar-reveal:hover { background: var(--bg); color: var(--text); }
+body.toolbar-hidden #toolbar-reveal { display: block; }
+
 #toolbar-buttons {
   display: flex;
   align-items: center;
