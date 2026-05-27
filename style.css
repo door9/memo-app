@@ -499,6 +499,44 @@ html, body {
 }
 #memo-folder-select:focus { border-color: var(--accent); }
 
+/* Folder Select */
+#folder-select-wrap {
+  position: relative;
+}
+
+#folder-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+#folder-select-list {
+  padding: 4px 0;
+}
+
+.folder-select-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s;
+}
+.folder-select-item:hover { background: var(--bg); }
+.folder-select-item.active { background: var(--bg2); color: var(--accent); font-weight: 600; }
+.folder-select-item--child { padding-left: 28px; }
+
 /* Template */
 #template-wrap {
   position: relative;
@@ -907,7 +945,7 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
 
 /* 481~768px: 폴더 선택·템플릿은 공간이 있으므로 항상 표시 */
 @media (min-width: 481px) and (max-width: 768px) {
-  #memo-folder-select { display: inline-block !important; }
+  #folder-select-wrap { display: flex !important; }
   #template-wrap { display: flex !important; }
 }
 
