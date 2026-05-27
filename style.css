@@ -894,7 +894,9 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
   .toolbar-extra.toolbar-show { display: flex !important; }
   select.toolbar-extra.toolbar-show { display: inline-block !important; }
   #btn-toolbar-more { display: flex; }
-  #toolbar-buttons.expanded { padding-left: 0; overflow-x: auto; }
+  /* 더보기 펼침: 햄버거 자리(46px) 유지 + 줄 바꿈 + toolbar-right 박스 해제 */
+  #toolbar-buttons.expanded { padding-left: 46px; flex-wrap: wrap; }
+  #toolbar-buttons.expanded #toolbar-right { display: contents; }
   #memo-title-input { margin: 0; }
   #editor-container { flex-direction: column; }
 
@@ -907,8 +909,6 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
 @media (min-width: 481px) and (max-width: 768px) {
   #memo-folder-select { display: inline-block !important; }
   #template-wrap { display: flex !important; }
-  /* 더보기 펼쳐도 햄버거 버튼 자리(46px) 유지 */
-  #toolbar-buttons.expanded { padding-left: 46px; }
 }
 
 /* 터치 기기(실제 모바일)에서만 글자 크기 증가 */
