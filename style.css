@@ -920,14 +920,15 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
   #menu-toggle { display: flex; align-items: center; justify-content: center; }
   #sidebar-header { padding-top: 56px; }
   #editor-toolbar { padding: 8px 10px; gap: 6px; }
-  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; align-items: center; }
+  #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; padding-right: 48px; align-items: center; position: relative; }
   #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
 
   /* 모바일: 추가 버튼 숨기고, 더보기 표시 */
   .toolbar-extra { display: none !important; }
   .toolbar-extra.toolbar-show { display: flex !important; }
   select.toolbar-extra.toolbar-show { display: inline-block !important; }
-  #btn-toolbar-more { display: flex; }
+  /* 더보기 버튼은 우상단에 고정 → 펼침 전/후 위치 동일, 다른 버튼이 그 자리를 침범 못함 */
+  #btn-toolbar-more { display: flex; position: absolute; top: 0; right: 0; }
   /* 더보기 펼침: 햄버거 자리(46px) 유지 + 줄 바꿈 + toolbar-right 박스 해제 */
   #toolbar-buttons.expanded { padding-left: 46px; flex-wrap: wrap; }
   #toolbar-buttons.expanded #toolbar-right { display: contents; }
