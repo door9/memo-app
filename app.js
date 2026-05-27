@@ -1553,20 +1553,36 @@ function onTitleInput() {
 
 // 에디터 스크롤 방향에 따라 툴바·제목 숨김/표시
 let lastEditorScrollTop = 0;
+let editorScrollLock = false;
 function handleEditorScroll() {
+  // 상태 변경 직후 보정 스크롤 무시 (트랜지션 중 떨림 방지)
+  if (editorScrollLock) return;
   const st = editor.scrollTop;
   const delta = st - lastEditorScrollTop;
-  if (st < 20) {
-    // 상단 근처는 항상 표시
-    document.body.classList.remove('toolbar-hidden');
-  } else if (delta > 5) {
-    // 아래로 스크롤
+  // 미세한 변화는 기준점만 갱신
+  if (Math.abs(delta) < 5) return;
+
+  const isHidden = document.body.classList.contains('toolbar-hidden');
+  let stateChanged = false;
+  if (delta > 0 && !isHidden) {
+    // 아래로 스크롤 → 숨김
     document.body.classList.add('toolbar-hidden');
-  } else if (delta < -5) {
-    // 위로 스크롤
+    stateChanged = true;
+  } else if (delta < 0 && isHidden) {
+    // 위로 스크롤 → 표시
     document.body.classList.remove('toolbar-hidden');
+    stateChanged = true;
   }
-  lastEditorScrollTop = st;
+
+  if (stateChanged) {
+    editorScrollLock = true;
+    setTimeout(() => {
+      editorScrollLock = false;
+      lastEditorScrollTop = editor.scrollTop;
+    }, 350);
+  } else {
+    lastEditorScrollTop = st;
+  }
 }
 
 function scheduleRenderAndSync() {
