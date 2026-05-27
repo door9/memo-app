@@ -940,8 +940,8 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
   .btn-icon { width: 42px; height: 42px; font-size: 1.15rem; }
 }
 
-/* 481~768px: 폴더 선택·템플릿은 공간이 있으므로 항상 표시 */
-@media (min-width: 481px) and (max-width: 768px) {
+/* 모바일·팝업 전체에서 폴더 선택·템플릿 버튼 항상 표시 (아이콘 버튼이라 자리 차지 작음) */
+@media (max-width: 768px) {
   #folder-select-wrap { display: flex !important; }
   #template-wrap { display: flex !important; }
 }
