@@ -1517,7 +1517,25 @@ function updateFolderSelect(selectedFolder) {
 
 function toggleFolderSelectDropdown() {
   const dd = $('#folder-select-dropdown');
-  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  if (dd.style.display !== 'none') {
+    dd.style.display = 'none';
+    return;
+  }
+  // 버튼 위치 기준으로 fixed 좌표 계산 (overflow 탈출 + 화면 우측 잘림 방지)
+  positionDropdown(dd, $('#btn-folder-select'));
+  dd.style.display = 'block';
+}
+
+function positionDropdown(dd, btn) {
+  const rect = btn.getBoundingClientRect();
+  dd.style.top = rect.bottom + 'px';
+  // 우측 잘림 방지: min-width 200px 기준
+  const ddWidth = Math.max(200, dd.offsetWidth || 200);
+  let left = rect.left;
+  if (left + ddWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - ddWidth - 8);
+  }
+  dd.style.left = left + 'px';
 }
 
 function onFolderSelectItemClick(e) {
@@ -1887,8 +1905,10 @@ function mergeTemplates(local, remote) {
 function toggleTemplateDropdown() {
   const dd = $('#template-dropdown');
   const isOpen = dd.style.display !== 'none';
-  dd.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) renderTemplateList();
+  if (isOpen) { dd.style.display = 'none'; return; }
+  renderTemplateList();
+  positionDropdown(dd, $('#btn-template'));
+  dd.style.display = 'block';
 }
 
 function renderTemplateList() {

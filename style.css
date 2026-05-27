@@ -505,9 +505,7 @@ html, body {
 }
 
 #folder-select-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed; /* overflow:hidden 컨테이너(#editor-toolbar) 탈출 위해 fixed */
   z-index: 100;
   background: var(--card);
   border: 1px solid var(--border);
@@ -543,9 +541,7 @@ html, body {
 }
 
 #template-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed; /* overflow:hidden 컨테이너 탈출 */
   z-index: 100;
   background: var(--card);
   border: 1px solid var(--border);
