@@ -42,7 +42,6 @@ const memoList = $('#memo-list');
 const folderList = $('#folder-list');
 const editor = $('#editor');
 const titleInput = $('#memo-title-input');
-const folderSelect = $('#memo-folder-select');
 const searchBox = $('#search-box');
 const syncStatus = $('#sync-status');
 const toast = $('#toast');
@@ -103,6 +102,9 @@ async function init() {
     }
     if (!e.target.closest('#template-wrap')) {
       $('#template-dropdown').style.display = 'none';
+    }
+    if (!e.target.closest('#folder-select-wrap')) {
+      $('#folder-select-dropdown').style.display = 'none';
     }
   });
 
@@ -200,7 +202,8 @@ async function init() {
   titleInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
   });
-  folderSelect.addEventListener('change', onFolderSelectChange);
+  $('#btn-folder-select').addEventListener('click', toggleFolderSelectDropdown);
+  $('#folder-select-list').addEventListener('click', onFolderSelectItemClick);
   searchBox.addEventListener('input', renderMemoList);
 
   document.addEventListener('keydown', (e) => {
@@ -1489,22 +1492,40 @@ let offlineCopyId = null; // 오프라인 복사본 추적
 let syncFailedForCurrentMemo = false; // 현재 메모 열기 시 동기화 실패 여부
 
 function updateFolderSelect(selectedFolder) {
-  let options = '<option value="">-- 폴더 없음 --</option>';
+  // 버튼 title에 현재 폴더 이름 표시
+  const folder = selectedFolder ? folders.find((f) => f.id === selectedFolder) : null;
+  const folderName = folder ? folder.name : '폴더 없음';
+  const btn = $('#btn-folder-select');
+  if (btn) btn.title = `폴더: ${folderName}`;
+
+  // 드롭다운 리스트 생성
+  let html = `<div class="folder-select-item ${!selectedFolder ? 'active' : ''}" data-folder="">-- 폴더 없음 --</div>`;
   const topFolders = folders.filter((f) => !f.parentId).sort(sortBySortOrder);
   for (const f of topFolders) {
-    options += `<option value="${f.id}" ${f.id === selectedFolder ? 'selected' : ''}>${escapeHtml(f.name)}</option>`;
+    html += `<div class="folder-select-item ${f.id === selectedFolder ? 'active' : ''}" data-folder="${f.id}">${escapeHtml(f.name)}</div>`;
     const children = getChildFolders(f.id);
     for (const c of children) {
-      options += `<option value="${c.id}" ${c.id === selectedFolder ? 'selected' : ''}>　${escapeHtml(c.name)}</option>`;
+      html += `<div class="folder-select-item folder-select-item--child ${c.id === selectedFolder ? 'active' : ''}" data-folder="${c.id}">└ ${escapeHtml(c.name)}</div>`;
     }
   }
-  folderSelect.innerHTML = options;
+  const list = $('#folder-select-list');
+  if (list) list.innerHTML = html;
 }
 
-function onFolderSelectChange() {
+function toggleFolderSelectDropdown() {
+  const dd = $('#folder-select-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function onFolderSelectItemClick(e) {
+  const item = e.target.closest('.folder-select-item');
+  if (!item) return;
+  const folderId = item.dataset.folder || null;
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
-  memo.folder = folderSelect.value || null;
+  memo.folder = folderId;
+  $('#folder-select-dropdown').style.display = 'none';
+  updateFolderSelect(folderId);
   scheduleAutoSave();
 }
 
@@ -1584,6 +1605,12 @@ function scheduleRenderAndSync() {
   // renderAll + Dropbox 동기화는 1.5초 디바운스
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 1500);
+}
+
+// 폴더 선택, undo/redo 등에서 호출: 즉시 저장 + 디바운스 동기화
+function scheduleAutoSave() {
+  saveLocalData();
+  scheduleRenderAndSync();
 }
 
 function saveNow() {

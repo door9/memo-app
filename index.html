@@ -64,7 +64,12 @@
   <main id="editor-area">
     <div id="editor-toolbar" style="display:none">
       <div id="toolbar-buttons">
-        <select id="memo-folder-select" class="toolbar-extra" title="폴더 선택" tabindex="-1"></select>
+        <div id="folder-select-wrap" class="toolbar-extra">
+          <button class="btn-icon" id="btn-folder-select" title="폴더 선택">📁</button>
+          <div id="folder-select-dropdown" style="display:none">
+            <div id="folder-select-list"></div>
+          </div>
+        </div>
         <div id="template-wrap" class="toolbar-extra">
           <button class="btn-icon" id="btn-template" title="템플릿">📄</button>
           <div id="template-dropdown" style="display:none">
