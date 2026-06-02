@@ -1192,11 +1192,13 @@ function deleteFolder(id) {
 // ── Memo CRUD ──
 function createMemo() {
   cleanupEmptyMemo();
+  // 특정 폴더를 연 상태면 그 폴더에 생성. '__none__'(미분류)·null(전체)은 폴더 없음 처리
+  const targetFolder = (currentFolder && currentFolder !== '__none__') ? currentFolder : null;
   const memo = {
     id: crypto.randomUUID(),
     title: '',
     content: '',
-    folder: currentFolder,
+    folder: targetFolder,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
