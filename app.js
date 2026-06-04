@@ -1191,9 +1191,16 @@ function deleteFolder(id) {
 
 // ── Memo CRUD ──
 function createMemo() {
+  // 새 글이 들어갈 폴더 결정 (cleanupEmptyMemo가 currentId를 비우기 전에 캡처)
+  // 1) 특정 폴더를 연 상태면 그 폴더
+  // 2) 전체/미분류 보기지만 지금 보고 있는 글이 어떤 폴더에 속하면 그 폴더
+  // 3) 둘 다 아니면 폴더 없음
+  let targetFolder = (currentFolder && currentFolder !== '__none__') ? currentFolder : null;
+  if (!targetFolder && currentId) {
+    const cur = memos.find((m) => m.id === currentId);
+    if (cur && cur.folder) targetFolder = cur.folder;
+  }
   cleanupEmptyMemo();
-  // 특정 폴더를 연 상태면 그 폴더에 생성. '__none__'(미분류)·null(전체)은 폴더 없음 처리
-  const targetFolder = (currentFolder && currentFolder !== '__none__') ? currentFolder : null;
   const memo = {
     id: crypto.randomUUID(),
     title: '',
