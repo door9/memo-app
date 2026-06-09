@@ -1956,6 +1956,7 @@ function saveAsTemplate() {
     id: crypto.randomUUID(),
     title: name.trim() || '(제목 없음)',
     content: memo.content,
+    folder: memo.folder || null,   // 템플릿에 폴더도 함께 저장
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -1970,12 +1971,28 @@ function applyTemplate(templateId) {
   const tpl = templates.find((t) => t.id === templateId);
   if (!tpl) return;
   $('#template-dropdown').style.display = 'none';
+
+  // 새 글의 폴더 결정 (cleanupEmptyMemo가 currentId를 비우기 전에 캡처)
+  // 1) 템플릿에 저장된 폴더(현재 존재할 때) → 그 폴더
+  // 2) 없으면 현재 연 폴더 → 3) 지금 보고 있는 글의 폴더 → 4) 폴더 없음
+  let targetFolder = null;
+  if (tpl.folder && folders.some((f) => f.id === tpl.folder)) {
+    targetFolder = tpl.folder;
+  } else {
+    targetFolder = (currentFolder && currentFolder !== '__none__') ? currentFolder : null;
+    if (!targetFolder && currentId) {
+      const cur = memos.find((m) => m.id === currentId);
+      if (cur && cur.folder) targetFolder = cur.folder;
+    }
+  }
+
+  cleanupEmptyMemo();
   // 새 메모 생성 후 템플릿 내용 적용
   const memo = {
     id: crypto.randomUUID(),
     title: tpl.title,
     content: tpl.content,
-    folderId: currentFolder,
+    folder: targetFolder,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     favorite: false,
@@ -1985,6 +2002,7 @@ function applyTemplate(templateId) {
   saveLocalData();
   renderAll();
   showEditor(memo);
+  scheduleSyncToDropbox();
   showToast('템플릿이 적용되었습니다');
 }
 
