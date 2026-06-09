@@ -649,18 +649,19 @@ body.toolbar-hidden #editor-toolbar {
 #toolbar-reveal {
   display: none;
   width: 100%;
+  height: 26px;
   background: var(--card);
   border: none;
   border-bottom: 1px solid var(--border);
-  padding: 2px 0;
+  padding: 0;
   color: var(--text2);
   font-size: 0.7rem;
   cursor: pointer;
-  line-height: 1.2;
+  line-height: 1;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 #toolbar-reveal:hover { background: var(--bg); color: var(--text); }
-body.toolbar-hidden #toolbar-reveal { display: block; }
+body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justify-content: center; }
 
 #toolbar-buttons {
   display: flex;
@@ -904,6 +905,7 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
   color: var(--bg);
   font-size: 1.2rem;
   cursor: pointer;
+  transition: width 0.2s, height 0.2s, top 0.2s, left 0.2s, border-radius 0.2s, font-size 0.2s;
 }
 
 /* PC에서 더보기 버튼 숨기기 */
@@ -922,6 +924,17 @@ body.toolbar-hidden #toolbar-reveal { display: block; }
   #editor-toolbar { padding: 8px 10px; gap: 6px; }
   #toolbar-buttons { gap: 6px; flex-wrap: nowrap; padding-left: 46px; padding-right: 48px; align-items: center; position: relative; }
   #menu-toggle { width: 42px; height: 42px; font-size: 1.3rem; top: 10px; left: 10px; }
+
+  /* 툴바 숨김 시: 햄버거를 ▼ 줄 왼쪽 끝에 같은 높이로 작게 배치 (본문 겹침 방지) */
+  body.toolbar-hidden #menu-toggle {
+    top: 0;
+    left: 0;
+    width: 44px;
+    height: 26px;
+    font-size: 1rem;
+    border-radius: 0;
+    z-index: 51;
+  }
 
   /* 모바일: 추가 버튼 숨기고, 더보기 표시 */
   .toolbar-extra { display: none !important; }
