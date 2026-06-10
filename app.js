@@ -88,16 +88,12 @@ async function init() {
     }
   });
 
-  // 탭/창 닫힐 때 미저장 내용 강제 저장
-  window.addEventListener('beforeunload', () => {
-    if (currentId) {
-      const memo = memos.find((m) => m.id === currentId);
-      if (memo) {
-        memo.content = editor.value;
-        memo.title = titleInput.value;
-        saveLocalData();
-      }
-    }
+  // 앱을 닫거나(beforeunload/pagehide), 다른 앱·화면으로 가려질 때(visibilitychange) 즉시 저장 + 동기화
+  // 특히 휴대폰에서 홈으로 나가거나 앱을 전환할 때 beforeunload는 잘 안 불리므로 visibilitychange가 핵심
+  window.addEventListener('beforeunload', flushSave);
+  window.addEventListener('pagehide', flushSave);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushSave();
   });
 
   // 폴더 액션 메뉴 바깥 클릭 시 닫기
@@ -1663,6 +1659,26 @@ function scheduleSyncToDropbox() {
       setSyncStatus('error', '저장 실패');
     }
   }, 3000);
+}
+
+// 앱을 닫거나 다른 화면으로 넘어갈 때: 현재 내용을 즉시 기기에 저장 + 대기 중인 클라우드 전송을 바로 실행
+function flushSave() {
+  // 편집 중인 메모가 있을 때만 저장 (메모 미선택 시 빈 상태로 덮어쓰는 것 방지 — 여러 창 동시 사용 대비)
+  if (currentId) {
+    const memo = memos.find((m) => m.id === currentId);
+    if (memo) {
+      memo.content = editor.value;
+      memo.title = titleInput.value;
+      memo.updatedAt = Date.now();
+      saveLocalData();
+    }
+  }
+  // 3초 대기 중인 동기화가 있으면 기다리지 않고 지금 바로 보냄
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+    if (accessToken) syncToDropbox().catch(() => {});
+  }
 }
 
 // ── Viewer Mode ──
