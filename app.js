@@ -1440,14 +1440,20 @@ function hideEditor() {
   emptyState.style.display = 'flex';
 }
 
+// 제목·본문이 모두 비어 있고 특정 폴더에도 속하지 않은 메모만 '빈 메모'로 본다.
+// 폴더를 지정했다면(미분류가 아닌 특정 폴더) 빈 메모여도 보존한다.
+function isBlankMemo(m) {
+  return !m.title.trim() && !m.content.trim() && !m.folder;
+}
+
 function cleanupEmptyMemo() {
   // 현재 편집 중이 아닌 빈 메모를 모두 삭제
   const before = memos.length;
-  memos = memos.filter((m) => m.id === currentId || m.title.trim() || m.content.trim());
+  memos = memos.filter((m) => m.id === currentId || !isBlankMemo(m));
   // 현재 편집 중인 메모도 빈 상태면 삭제
   if (currentId) {
     const memo = memos.find((m) => m.id === currentId);
-    if (memo && !memo.title.trim() && !memo.content.trim()) {
+    if (memo && isBlankMemo(memo)) {
       memos = memos.filter((m) => m.id !== currentId);
       currentId = null;
     }
@@ -2505,8 +2511,8 @@ function renderFolderList() {
 
 function renderMemoList() {
   const query = searchBox.value.toLowerCase().trim();
-  // 현재 편집 중이 아닌 빈 메모는 목록에서 숨기기
-  let filtered = memos.filter((m) => m.id === currentId || m.title.trim() || m.content.trim());
+  // 현재 편집 중이 아닌 빈 메모는 목록에서 숨기기 (폴더 지정된 메모는 표시)
+  let filtered = memos.filter((m) => m.id === currentId || !isBlankMemo(m));
   const lockedIds = getLockedFolderIds();
 
   if (currentFolder === '__none__') {
