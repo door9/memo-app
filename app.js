@@ -1495,8 +1495,13 @@ async function loadMemoInEditor(memo) {
   }
   offlineCopyId = null;
   currentId = memo.id;
+  // 폴더에 속한 노트를 열면 사이드바 폴더 선택도 그 폴더로 동기화 (잠긴 폴더는 제외)
+  if (memo.folder && folders.some((f) => f.id === memo.folder) && !isFolderLocked(memo.folder)) {
+    currentFolder = memo.folder;
+  }
   showEditor(memo);
   renderMemoList();
+  renderFolderList();
   // 새 메모 열 때 툴바·제목 다시 표시
   document.body.classList.remove('toolbar-hidden');
   lastEditorScrollTop = 0;
