@@ -416,9 +416,16 @@ html, body {
 .folder-add-btn:hover { background: var(--bg2); color: var(--text); }
 
 /* Memo list */
-#memo-list {
+/* 폴더 영역 + 노트 영역을 하나의 스크롤로 통합 */
+#sidebar-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#memo-list {
   padding: 4px 8px;
 }
 
