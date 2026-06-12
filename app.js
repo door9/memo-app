@@ -159,6 +159,19 @@ async function init() {
   // 키보드 단축키
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
+    if (k === 'z' && !e.shiftKey && document.activeElement === editor) {
+      e.preventDefault();
+      performUndo();
+      return;
+    }
+    // Ctrl+Shift+Z 또는 Ctrl+Y → 되살리기
+    if (((k === 'z' && e.shiftKey) || k === 'y') && document.activeElement === editor) {
+      e.preventDefault();
+      performRedo();
+      return;
+    }
     // Ctrl+F → 앱 찾기/바꾸기
     if (e.key === 'f') {
       if (!currentId) return;
@@ -1417,6 +1430,7 @@ function showEditor(memo) {
   editor.value = memo.content;
   undoStack = [];
   redoStack = [];
+  undoGroupOpen = false;
   updateFolderSelect(memo.folder);
   updateFavButton(memo);
   updateMemoDates(memo);
@@ -1711,16 +1725,35 @@ function applyViewerMode(on) {
   $('#btn-viewer').classList.toggle('active', on);
 }
 
-// ── Undo / Redo ──
-let lastSavedContent = '';
+// ── Undo / Redo (어절 단위) ──
+let undoGroupOpen = false;     // 현재 타이핑 묶음이 열려 있는지
+let undoIdleTimer = null;
+// 어절 경계로 볼 문자: 공백·줄바꿈·구두점
+const UNDO_WORD_BOUNDARY = /[\s.,!?;:'"()\[\]{}~…·，。！？；：、]/;
 
 function scheduleUndoSnapshot(memo) {
-  const cur = editor.value;
-  if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== cur) {
-    undoStack.push(cur);
-    if (undoStack.length > UNDO_MAX) undoStack.shift();
-    redoStack = []; // 새 입력 시 redo 이력 초기화
+  const before = memo.content;   // 이번 입력이 반영되기 전 내용
+  const after = editor.value;    // 반영된 후 내용
+  if (before === after) return;
+
+  // 새 어절 묶음의 시작: '입력 전 상태'를 한 번만 저장
+  if (!undoGroupOpen) {
+    if (undoStack.length === 0 || undoStack[undoStack.length - 1] !== before) {
+      undoStack.push(before);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+    }
+    redoStack = []; // 새 입력 시 되살리기 이력 초기화
+    undoGroupOpen = true;
   }
+
+  // 어절 경계(공백·구두점)를 입력하면 묶음을 끊어 다음 글자가 새 묶음이 되게 함
+  if (UNDO_WORD_BOUNDARY.test(after.slice(-1))) {
+    undoGroupOpen = false;
+  }
+
+  // 잠시(1.2초) 멈추면 묶음을 끊음
+  clearTimeout(undoIdleTimer);
+  undoIdleTimer = setTimeout(() => { undoGroupOpen = false; }, 1200);
 }
 
 function performUndo() {
@@ -1743,6 +1776,8 @@ function performUndo() {
   editor.value = prev;
   memo.content = prev;
   memo.updatedAt = Date.now();
+  undoGroupOpen = false; // 되돌린 뒤 새 입력은 새 묶음으로
+  updateCharCount();
   scheduleAutoSave();
   showToast('되돌리기 완료');
 }
@@ -1766,6 +1801,8 @@ function performRedo() {
   editor.value = next;
   memo.content = next;
   memo.updatedAt = Date.now();
+  undoGroupOpen = false; // 되살린 뒤 새 입력은 새 묶음으로
+  updateCharCount();
   scheduleAutoSave();
   showToast('되살리기 완료');
 }
