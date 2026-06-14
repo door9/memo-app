@@ -2130,17 +2130,14 @@ function replaceAction() {
 // 무시해 단락 구분이 깨진다. 그래서 빈 줄로 나뉜 문단은 <p>로, 문단 안의 줄바꿈은
 // <br>로 바꾼 HTML을 함께 올려, 어디에 붙여넣어도 단락이 그대로 유지되게 한다.
 function buildCopyPayload(memo) {
-  const titleText = (memo.title || '').trim();
-  const plain = (memo.title ? memo.title + '\n\n' : '') + memo.content;
+  // 제목은 빼고 본문만 복사한다.
+  const plain = memo.content || '';
 
-  const blocks = [];
-  if (titleText) blocks.push(titleText);
-  (memo.content || '')
+  const blocks = (memo.content || '')
     .replace(/\r\n?/g, '\n')                  // 줄바꿈 문자 통일
     .split(/\n[ \t]*\n+/)                     // 빈 줄(공백만 있는 줄 포함)을 문단 경계로
     .map((p) => p.replace(/^\n+|\n+$/g, ''))
-    .filter((p) => p.length > 0)
-    .forEach((p) => blocks.push(p));
+    .filter((p) => p.length > 0);
 
   const html = blocks
     .map((b) => '<p>' + escapeHtml(b).replace(/\n/g, '<br>') + '</p>')
