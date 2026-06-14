@@ -2125,15 +2125,58 @@ function replaceAction() {
 }
 
 // ── Copy & Share ──
-function copyMemoToClipboard() {
+// 메모를 일반 텍스트 + 서식(HTML)으로 함께 복사한다.
+// 리치 텍스트 편집기(예: 사내 CMS 작성창)는 일반 텍스트를 붙여넣을 때 줄바꿈을
+// 무시해 단락 구분이 깨진다. 그래서 빈 줄로 나뉜 문단은 <p>로, 문단 안의 줄바꿈은
+// <br>로 바꾼 HTML을 함께 올려, 어디에 붙여넣어도 단락이 그대로 유지되게 한다.
+function buildCopyPayload(memo) {
+  const titleText = (memo.title || '').trim();
+  const plain = (memo.title ? memo.title + '\n\n' : '') + memo.content;
+
+  const blocks = [];
+  if (titleText) blocks.push(titleText);
+  (memo.content || '')
+    .replace(/\r\n?/g, '\n')                  // 줄바꿈 문자 통일
+    .split(/\n[ \t]*\n+/)                     // 빈 줄(공백만 있는 줄 포함)을 문단 경계로
+    .map((p) => p.replace(/^\n+|\n+$/g, ''))
+    .filter((p) => p.length > 0)
+    .forEach((p) => blocks.push(p));
+
+  const html = blocks
+    .map((b) => '<p>' + escapeHtml(b).replace(/\n/g, '<br>') + '</p>')
+    .join('') || '<p><br></p>';
+
+  return { plain, html };
+}
+
+async function copyMemoToClipboard() {
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
-  const text = (memo.title ? memo.title + '\n\n' : '') + memo.content;
-  navigator.clipboard.writeText(text).then(() => {
+  const { plain, html } = buildCopyPayload(memo);
+
+  // 1순위: HTML + 텍스트를 동시에 복사해 서식(단락 구분) 유지
+  if (navigator.clipboard && window.ClipboardItem) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([plain], { type: 'text/plain' }),
+        }),
+      ]);
+      showToast('클립보드에 복사됨');
+      return;
+    } catch (e) {
+      // ClipboardItem 미지원·실패 시 아래 일반 텍스트 복사로 폴백
+    }
+  }
+
+  // 2순위: 일반 텍스트만 복사
+  try {
+    await navigator.clipboard.writeText(plain);
     showToast('클립보드에 복사됨');
-  }).catch(() => {
+  } catch (e) {
     showToast('복사 실패');
-  });
+  }
 }
 
 function shareMemo() {
