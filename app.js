@@ -1575,6 +1575,10 @@ function onFolderSelectItemClick(e) {
   const memo = memos.find((m) => m.id === currentId);
   if (!memo) return;
   memo.folder = folderId;
+  // 폴더 지정도 '수정'이므로 updatedAt을 갱신한다.
+  // (갱신하지 않으면 동기화 병합 시 폴더 없던 원격본과 시간이 같아 폴더 지정이 되돌려지고,
+  //  빈 메모로 간주돼 자동 삭제될 수 있다.)
+  memo.updatedAt = Date.now();
   $('#folder-select-dropdown').style.display = 'none';
   updateFolderSelect(folderId);
   scheduleAutoSave();
@@ -2241,7 +2245,7 @@ function bulkMoveUnified() {
       const folder = overlay.querySelector('select').value || null;
       for (const id of selectedMemos) {
         const m = memos.find((x) => x.id === id);
-        if (m) { m.folder = folder; }
+        if (m) { m.folder = folder; m.updatedAt = Date.now(); }
       }
       selectedMemos.clear();
       overlay.remove();
