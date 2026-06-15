@@ -84,6 +84,17 @@ html, body {
 #sync-status.synced { color: var(--success); }
 #sync-status.error { color: var(--accent); }
 
+/* 최근 저장·동기화 시각 (햄버거 옆 빈 영역) */
+#save-sync-times {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
 #search-row {
   display: flex;
   gap: 4px;
@@ -932,7 +943,9 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
   }
   #sidebar.open { transform: translateX(0); }
   #menu-toggle { display: flex; align-items: center; justify-content: center; }
-  #sidebar-header { padding-top: 56px; }
+  #sidebar-header { padding-top: 56px; position: relative; }
+  /* 햄버거(좌상단) 오른쪽 빈 자리에 배치 */
+  #save-sync-times { position: absolute; top: 8px; left: 56px; right: 12px; font-size: 0.6rem; }
   #editor-toolbar { padding: 8px 10px; gap: 6px; }
   #toolbar-buttons { gap: 4px; flex-wrap: nowrap; padding-left: 46px; padding-right: 46px; align-items: center; position: relative; }
   #toolbar-right { gap: 4px; }

@@ -638,6 +638,7 @@ async function syncToDropbox() {
   if (masterPasswordHash) obj.masterPassword = masterPasswordHash;
   const data = JSON.stringify(obj, null, 2);
   await dbxUpload(data);
+  markSynced();
 }
 
 function mergeMemos(local, remote) {
@@ -698,6 +699,26 @@ function mergeDeletedIds(local, remote) {
 }
 
 // ── Local Storage ──
+// 최근 저장/동기화 시각을 연월일시분초로 표시 (햄버거 옆 영역)
+function fmtFullTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(Number(ts));
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+function updateSaveSyncTimes() {
+  const savedEl = $('#last-saved-time');
+  const syncedEl = $('#last-synced-time');
+  if (savedEl) savedEl.textContent = '최근 저장 ' + fmtFullTime(localStorage.getItem('last_saved_at'));
+  if (syncedEl) syncedEl.textContent = '최근 동기화 ' + fmtFullTime(localStorage.getItem('last_synced_at'));
+}
+
+function markSynced() {
+  localStorage.setItem('last_synced_at', String(Date.now()));
+  updateSaveSyncTimes();
+}
+
 function saveLocalData() {
   localStorage.setItem('memos', JSON.stringify(memos));
   localStorage.setItem('folders', JSON.stringify(folders));
@@ -706,6 +727,8 @@ function saveLocalData() {
   localStorage.setItem('templates', JSON.stringify(templates));
   if (masterPasswordHash) localStorage.setItem('master_pw', masterPasswordHash);
   else localStorage.removeItem('master_pw');
+  localStorage.setItem('last_saved_at', String(Date.now()));
+  updateSaveSyncTimes();
 }
 
 function loadLocalData() {
@@ -1498,6 +1521,7 @@ async function loadMemoInEditor(memo) {
         if (Array.isArray(remote.templates)) templates = mergeTemplates(templates, remote.templates);
       }
       saveLocalData();
+      markSynced();
       setSyncStatus('synced', '동기화 완료');
       // 동기화 후 최신 memo 객체 다시 조회
       memo = memos.find((m) => m.id === memo.id);
@@ -2719,6 +2743,7 @@ function showApp() {
   loginScreen.style.display = 'none';
   app.style.display = 'flex';
   renderAll();
+  updateSaveSyncTimes();
   if (accessToken) setSyncStatus('synced', '연결됨');
   else setSyncStatus('', '오프라인');
 }
