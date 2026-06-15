@@ -160,6 +160,12 @@ async function init() {
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
+    // Ctrl+Shift+D → 하이픈(------) 구분선, Ctrl+Shift+E → 등호(======) 구분선 (에디터 포커스 시)
+    if (e.shiftKey && (k === 'd' || k === 'e') && document.activeElement === editor) {
+      e.preventDefault();
+      insertDivider(k === 'd' ? '-' : '=');
+      return;
+    }
     // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
     if (k === 'z' && !e.shiftKey && document.activeElement === editor) {
       e.preventDefault();
@@ -1653,6 +1659,41 @@ function onTitleInput() {
   memo.updatedAt = Date.now();
   saveLocalData(); // localStorage는 즉시 저장
   scheduleRenderAndSync();
+}
+
+// 본문 커서 자리에 구분선 한 줄 삽입 (Ctrl+Shift+D=하이픈, Ctrl+Shift+E=등호)
+// 길이는 입력창의 현재 너비·글꼴을 재서 한 줄을 채우고 살짝 넘치도록 자동 계산
+function insertDivider(ch) {
+  if (document.activeElement !== editor) return;
+  const cs = getComputedStyle(editor);
+  const textW = editor.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  // 입력창과 같은 글꼴의 숨은 요소로 글자 너비를 실제 렌더링 기준으로 측정 (canvas보다 정확)
+  let probe = insertDivider._probe;
+  if (!probe) {
+    probe = insertDivider._probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;';
+    document.body.appendChild(probe);
+  }
+  probe.style.fontFamily = cs.fontFamily;
+  probe.style.fontSize = cs.fontSize;
+  probe.style.fontWeight = cs.fontWeight;
+  probe.style.letterSpacing = cs.letterSpacing;
+  probe.textContent = ch.repeat(100);
+  const charW = (probe.getBoundingClientRect().width / 100) || 7;
+  const count = Math.max(3, Math.floor(textW / charW) + 1); // 한 줄 채우고 1글자 더 → 살짝 넘침
+  const line = ch.repeat(count);
+
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const before = editor.value.slice(0, start);
+  const after = editor.value.slice(end);
+  const pre = (before === '' || before.endsWith('\n')) ? '' : '\n'; // 줄 중간이면 줄바꿈 먼저
+  const insert = pre + line + '\n';
+  editor.value = before + insert + after;
+  const caret = (before + insert).length; // 커서는 구분선 다음 줄로
+  editor.setSelectionRange(caret, caret);
+  // 기존 입력 처리에 연결 → 저장·되돌리기(Ctrl+Z)·검색 하이라이트 자동 연동
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 // 에디터 스크롤 방향에 따라 툴바·제목 숨김/표시
