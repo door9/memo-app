@@ -96,6 +96,9 @@ async function init() {
     if (document.visibilityState === 'hidden') flushSave();
   });
 
+  // 같은 기기의 다른 창에서 저장하면(localStorage 변경) 이 창에 즉시 반영
+  window.addEventListener('storage', onExternalStorageChange);
+
   // 폴더 액션 메뉴 바깥 클릭 시 닫기
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.folder-item')) {
@@ -1448,6 +1451,28 @@ function updateFavButton(memo) {
     btn.textContent = '☆';
     btn.classList.remove('fav-active');
   }
+}
+
+// 다른 창(같은 기기)에서 localStorage가 바뀌면 호출 → 이 창을 최신 상태로 갱신
+// (A창에서 수정 → B창이 즉시 반영. 단, 이 창에서 직접 입력 중이면 본문은 건드리지 않음)
+function onExternalStorageChange(e) {
+  if (e.key === 'last_saved_at' || e.key === 'last_synced_at') { updateSaveSyncTimes(); return; }
+  if (e.key !== 'memos') return; // saveLocalData는 항상 memos를 함께 저장하므로 이 키만 보면 됨
+  loadLocalData();
+  renderAll();
+  updateSaveSyncTimes();
+  if (!currentId) return;
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) { currentId = null; hideEditor(); return; } // 다른 창에서 이 글이 삭제됨
+  // 이 창에서 직접 입력 중(창이 활성 + 입력칸 포커스)이면 본문을 덮어쓰지 않음(편집 손실 방지)
+  const busyHere = document.hasFocus() && (document.activeElement === editor || document.activeElement === titleInput);
+  if (!busyHere) {
+    if (editor.value !== memo.content) editor.value = memo.content;
+    if (titleInput.value !== memo.title) titleInput.value = memo.title;
+    updateCharCount();
+    updateFavButton(memo);
+  }
+  updateMemoDates(memo);
 }
 
 // ── Editor ──
