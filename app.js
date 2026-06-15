@@ -1663,26 +1663,11 @@ function onTitleInput() {
 }
 
 // 본문 커서 자리에 구분선 한 줄 삽입 (Ctrl+Shift+D=하이픈, Ctrl+Shift+E=등호)
-// 길이는 입력창의 현재 너비·글꼴을 재서 한 줄을 채우고 살짝 넘치도록 자동 계산
+// 길이는 창 크기와 무관하게 고정 (DIVIDER_LEN 글자)
+const DIVIDER_LEN = 59;
 function insertDivider(ch) {
   if (document.activeElement !== editor) return;
-  const cs = getComputedStyle(editor);
-  const textW = editor.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
-  // 입력창과 같은 글꼴의 숨은 요소로 글자 너비를 실제 렌더링 기준으로 측정 (canvas보다 정확)
-  let probe = insertDivider._probe;
-  if (!probe) {
-    probe = insertDivider._probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;';
-    document.body.appendChild(probe);
-  }
-  probe.style.fontFamily = cs.fontFamily;
-  probe.style.fontSize = cs.fontSize;
-  probe.style.fontWeight = cs.fontWeight;
-  probe.style.letterSpacing = cs.letterSpacing;
-  probe.textContent = ch.repeat(100);
-  const charW = (probe.getBoundingClientRect().width / 100) || 7;
-  const count = Math.max(3, Math.floor(textW / charW) + 1); // 한 줄 채우고 1글자 더 → 살짝 넘침
-  const line = ch.repeat(count);
+  const line = ch.repeat(DIVIDER_LEN);
 
   const start = editor.selectionStart;
   const end = editor.selectionEnd;
