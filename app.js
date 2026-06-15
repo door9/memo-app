@@ -142,6 +142,7 @@ async function init() {
   $('#btn-copy').addEventListener('click', copyMemoToClipboard);
   $('#btn-share').addEventListener('click', shareMemo);
   $('#btn-viewer').addEventListener('click', toggleViewer);
+  $('#btn-help').addEventListener('click', showHelpDialog);
   $('#btn-delete').addEventListener('click', confirmDelete);
   $('#memo-sort').addEventListener('change', (e) => { memoSortKey = e.target.value; renderMemoList(); });
   $('#btn-select-mode').addEventListener('click', toggleSelectMode);
@@ -1902,8 +1903,51 @@ function updateMemoDates(memo) {
     const d = new Date(ts);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   };
-  el.textContent = '작성: ' + fmt(memo.createdAt) + '　수정: ' + fmt(memo.updatedAt);
+  const textEl = $('#memo-dates-text');
+  if (textEl) textEl.textContent = '작성: ' + fmt(memo.createdAt) + '　수정: ' + fmt(memo.updatedAt);
   el.style.display = 'flex';
+}
+
+// ── Help ──
+function showHelpDialog() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box help-box">
+      <h3>도움말 · 사용 팁</h3>
+      <div class="help-content">
+        <p class="help-h">⌨️ 단축키 (PC)</p>
+        <ul>
+          <li><kbd>Ctrl</kbd>+<kbd>S</kbd> 저장·동기화</li>
+          <li><kbd>Ctrl</kbd>+<kbd>N</kbd> 새 글</li>
+          <li><kbd>Ctrl</kbd>+<kbd>F</kbd> 찾기·바꾸기</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 되살리기</li>
+          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> 구분선 ------ · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 구분선 ======</li>
+        </ul>
+        <p class="help-h">🗂️ 폴더·정리</p>
+        <ul>
+          <li>📁 현재 글을 폴더에 지정 — 빈 글도 폴더를 정하면 사라지지 않습니다</li>
+          <li>⋮ 더보기에서 즐겨찾기(☆)·삭제(🗑)</li>
+          <li>☑ 선택 모드로 여러 글을 한 번에 이동·삭제</li>
+        </ul>
+        <p class="help-h">📝 작성·보기</p>
+        <ul>
+          <li>📄 템플릿 저장·불러오기 · 📋 본문만 복사 · 📖 읽기 전용 보기</li>
+          <li>글 목록에서 <b>더블클릭</b>하면 새 창으로 열립니다</li>
+        </ul>
+        <p class="help-h">💾 저장·백업·보안</p>
+        <ul>
+          <li>입력하면 자동 저장·자동 동기화 (최근 시각은 왼쪽 위에 표시)</li>
+          <li>💾 수동 백업 · 매일 자동 백업 · 🗑 휴지통에서 복원</li>
+          <li>폴더에 비밀번호 설정 가능 (Master로 전체 해제)</li>
+        </ul>
+      </div>
+      <button class="btn btn-primary" id="help-close">닫기</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#help-close').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ── Find & Replace ──
