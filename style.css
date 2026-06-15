@@ -93,6 +93,9 @@ html, body {
   line-height: 1.35;
   color: var(--text2);
   white-space: nowrap;
+  text-align: right;                  /* 오른쪽 정렬 → 두 줄의 연월일시분초가 우측에서 정렬됨 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums; /* 숫자 폭 균일 → 세로로 나란히 */
 }
 
 #search-row {
