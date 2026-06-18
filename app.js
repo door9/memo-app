@@ -224,7 +224,8 @@ async function init() {
   });
   titleInput.addEventListener('input', onTitleInput);
   titleInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
+    // 제목에서 Enter → 본문 맨앞으로 커서 이동
+    if (e.key === 'Enter') { e.preventDefault(); editor.focus(); editor.setSelectionRange(0, 0); editor.scrollTop = 0; }
   });
   $('#btn-folder-select').addEventListener('click', toggleFolderSelectDropdown);
   $('#folder-select-list').addEventListener('click', onFolderSelectItemClick);
