@@ -162,14 +162,14 @@ async function init() {
 
   // 키보드 단축키
   document.addEventListener('keydown', (e) => {
+    // Alt+Shift+D → 하이픈(------) 구분선, Alt+Shift+E → 등호(======) 구분선 (에디터 포커스 시)
+    // Ctrl 게이트보다 위에서 처리(Alt는 Ctrl이 아니므로). 글자는 레이아웃 영향 적은 e.code로 판별
+    if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && document.activeElement === editor) {
+      if (e.code === 'KeyD') { e.preventDefault(); insertDivider('-'); return; }
+      if (e.code === 'KeyE') { e.preventDefault(); insertDivider('='); return; }
+    }
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
-    // Ctrl+Shift+D → 하이픈(------) 구분선, Ctrl+Shift+E → 등호(======) 구분선 (에디터 포커스 시)
-    if (e.shiftKey && (k === 'd' || k === 'e') && document.activeElement === editor) {
-      e.preventDefault();
-      insertDivider(k === 'd' ? '-' : '=');
-      return;
-    }
     // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
     if (k === 'z' && !e.shiftKey && document.activeElement === editor) {
       e.preventDefault();
@@ -1687,7 +1687,7 @@ function onTitleInput() {
   scheduleRenderAndSync();
 }
 
-// 본문 커서 자리에 구분선 한 줄 삽입 (Ctrl+Shift+D=하이픈, Ctrl+Shift+E=등호)
+// 본문 커서 자리에 구분선 한 줄 삽입 (Alt+Shift+D=하이픈, Alt+Shift+E=등호)
 // 길이는 창 크기와 무관하게 고정 (DIVIDER_LEN 글자)
 const DIVIDER_LEN = 59;
 function insertDivider(ch) {
@@ -1932,7 +1932,7 @@ function showHelpDialog() {
           <li><kbd>Ctrl</kbd>+<kbd>N</kbd> 새 글</li>
           <li><kbd>Ctrl</kbd>+<kbd>F</kbd> 찾기·바꾸기</li>
           <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 되살리기</li>
-          <li><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> 구분선 ------ · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 구분선 ======</li>
+          <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> 구분선 ------ · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 구분선 ======</li>
         </ul>
         <p class="help-h">🗂️ 폴더·정리</p>
         <ul>
