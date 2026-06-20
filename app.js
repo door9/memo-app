@@ -168,6 +168,13 @@ async function init() {
       if (e.code === 'KeyD') { e.preventDefault(); insertDivider('-'); return; }
       if (e.code === 'KeyE') { e.preventDefault(); insertDivider('='); return; }
     }
+    // Alt+; → 현재 날짜, Alt+Shift+; → 날짜+시간 (본문/제목 포커스 시)
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'Semicolon' &&
+        (document.activeElement === editor || document.activeElement === titleInput)) {
+      e.preventDefault();
+      insertTextAtCursor(formatDateStamp(e.shiftKey));
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
     // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
@@ -1708,6 +1715,27 @@ function insertDivider(ch) {
   editor.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+// 현재 날짜(요일 포함), withTime이면 24시 HH:MM도 붙여 반환 — 예: 2026-06-21(일) 03:10
+function formatDateStamp(withTime) {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  let s = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '(' + wd + ')';
+  if (withTime) s += ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  return s;
+}
+
+// 현재 포커스된 입력칸(본문 또는 제목) 커서 자리에 텍스트 삽입
+function insertTextAtCursor(text) {
+  const el = document.activeElement;
+  if (el !== editor && el !== titleInput) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  el.value = el.value.slice(0, start) + text + el.value.slice(end);
+  const caret = start + text.length;
+  el.setSelectionRange(caret, caret);
+  el.dispatchEvent(new Event('input', { bubbles: true })); // 저장·되돌리기 연동
+}
+
 // 에디터 스크롤 방향에 따라 툴바·제목 숨김/표시
 let lastEditorScrollTop = 0;
 let editorScrollLock = false;
@@ -1934,6 +1962,7 @@ function showHelpDialog() {
           <li><kbd>Ctrl</kbd>+<kbd>F</kbd> 찾기·바꾸기</li>
           <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 되살리기</li>
           <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> 구분선 ------ · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 구분선 ======</li>
+          <li><kbd>Alt</kbd>+<kbd>;</kbd> 날짜 입력 · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>;</kbd> 날짜+시간 입력</li>
         </ul>
         <p class="help-h">🗂️ 폴더·정리</p>
         <ul>
