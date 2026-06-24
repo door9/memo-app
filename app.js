@@ -398,7 +398,17 @@ function confirmLogout() {
 }
 
 // ── Dropbox API ──
-async function dbxUpload(content, retried) {
+// 동시 쓰기 충돌(409 too_many_write_operations)·요청 과다(429) 시 잠깐 기다렸다 재시도.
+// 두 창에서 같은 파일에 동시에 저장할 때 한쪽이 거절당하던 문제를 자동으로 넘기기 위함.
+const DBX_MAX_RETRY = 3;
+const dbxSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function dbxRetryDelay(res, attempt) {
+  const ra = parseInt((res && res.headers.get('Retry-After')) || '0', 10);
+  if (ra > 0) return Math.min(ra * 1000, 10000); // 서버가 알려준 Retry-After(초) 존중, 최대 10초
+  return Math.min(2000, 400 * Math.pow(2, attempt)); // 0.4s → 0.8s → 1.6s
+}
+
+async function dbxUpload(content, retried, attempt = 0) {
   const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
     method: 'POST',
     headers: {
@@ -414,17 +424,22 @@ async function dbxUpload(content, retried) {
   });
   if (res.status === 401) {
     if (!retried && await refreshAccessToken()) {
-      return dbxUpload(content, true);
+      return dbxUpload(content, true, attempt);
     }
     showToast('Dropbox 인증 만료. 다시 로그인해주세요.');
     logout();
     throw new Error('auth expired');
   }
+  // 동시 쓰기 충돌(409)·요청 과다(429) → 잠깐 대기 후 재시도 (다른 창과 동시 저장 시)
+  if ((res.status === 429 || res.status === 409) && attempt < DBX_MAX_RETRY) {
+    await dbxSleep(dbxRetryDelay(res, attempt));
+    return dbxUpload(content, retried, attempt + 1);
+  }
   if (!res.ok) throw new Error('upload failed: ' + res.status);
   return res.json();
 }
 
-async function dbxDownload(retried) {
+async function dbxDownload(retried, attempt = 0) {
   const res = await fetch('https://content.dropboxapi.com/2/files/download', {
     method: 'POST',
     headers: {
@@ -432,14 +447,18 @@ async function dbxDownload(retried) {
       'Dropbox-API-Arg': JSON.stringify({ path: DROPBOX_FILE }),
     },
   });
-  if (res.status === 409 || res.status === 404) return null;
+  if (res.status === 409 || res.status === 404) return null; // 아직 파일 없음
   if (res.status === 401) {
     if (!retried && await refreshAccessToken()) {
-      return dbxDownload(true);
+      return dbxDownload(true, attempt);
     }
     showToast('Dropbox 인증 만료. 다시 로그인해주세요.');
     logout();
     throw new Error('auth expired');
+  }
+  if (res.status === 429 && attempt < DBX_MAX_RETRY) {
+    await dbxSleep(dbxRetryDelay(res, attempt));
+    return dbxDownload(retried, attempt + 1);
   }
   if (!res.ok) throw new Error('download failed: ' + res.status);
   return res.json();
@@ -484,7 +503,7 @@ async function createBackup() {
   }
 }
 
-async function dbxUploadTo(path, content, retried) {
+async function dbxUploadTo(path, content, retried, attempt = 0) {
   const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
     method: 'POST',
     headers: {
@@ -495,14 +514,18 @@ async function dbxUploadTo(path, content, retried) {
     body: content,
   });
   if (res.status === 401) {
-    if (!retried && await refreshAccessToken()) return dbxUploadTo(path, content, true);
+    if (!retried && await refreshAccessToken()) return dbxUploadTo(path, content, true, attempt);
     logout(); throw new Error('auth expired');
+  }
+  if ((res.status === 429 || res.status === 409) && attempt < DBX_MAX_RETRY) {
+    await dbxSleep(dbxRetryDelay(res, attempt));
+    return dbxUploadTo(path, content, retried, attempt + 1);
   }
   if (!res.ok) throw new Error('upload failed: ' + res.status);
   return res.json();
 }
 
-async function dbxListFolder(path, retried) {
+async function dbxListFolder(path, retried, attempt = 0) {
   const res = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
     method: 'POST',
     headers: {
@@ -513,15 +536,19 @@ async function dbxListFolder(path, retried) {
   });
   if (res.status === 409 || res.status === 404) return [];
   if (res.status === 401) {
-    if (!retried && await refreshAccessToken()) return dbxListFolder(path, true);
+    if (!retried && await refreshAccessToken()) return dbxListFolder(path, true, attempt);
     logout(); throw new Error('auth expired');
+  }
+  if (res.status === 429 && attempt < DBX_MAX_RETRY) {
+    await dbxSleep(dbxRetryDelay(res, attempt));
+    return dbxListFolder(path, retried, attempt + 1);
   }
   if (!res.ok) throw new Error('list failed: ' + res.status);
   const data = await res.json();
   return data.entries || [];
 }
 
-async function dbxDelete(path, retried) {
+async function dbxDelete(path, retried, attempt = 0) {
   const res = await fetch('https://api.dropboxapi.com/2/files/delete_v2', {
     method: 'POST',
     headers: {
@@ -531,8 +558,12 @@ async function dbxDelete(path, retried) {
     body: JSON.stringify({ path }),
   });
   if (res.status === 401) {
-    if (!retried && await refreshAccessToken()) return dbxDelete(path, true);
+    if (!retried && await refreshAccessToken()) return dbxDelete(path, true, attempt);
     logout(); throw new Error('auth expired');
+  }
+  if (res.status === 429 && attempt < DBX_MAX_RETRY) {
+    await dbxSleep(dbxRetryDelay(res, attempt));
+    return dbxDelete(path, retried, attempt + 1);
   }
   if (!res.ok) throw new Error('delete failed: ' + res.status);
 }
