@@ -2220,33 +2220,46 @@ function applyTemplate(templateId) {
   if (!tpl) return;
   $('#template-dropdown').style.display = 'none';
 
-  // 새 글의 폴더 결정 (cleanupEmptyMemo가 currentId를 비우기 전에 캡처)
-  // 1) 템플릿에 저장된 폴더(현재 존재할 때) → 그 폴더
-  // 2) 없으면 현재 연 폴더 → 3) 지금 보고 있는 글의 폴더 → 4) 폴더 없음
+  // 현재 비어 있는(제목·본문 모두 빈) 노트가 열려 있으면 새로 만들지 않고 그 노트에 적용
+  const cur = currentId ? memos.find((m) => m.id === currentId) : null;
+  const applyToCurrent = !!(cur && !cur.title.trim() && !cur.content.trim());
+
+  // 폴더 결정: 템플릿에 저장된 폴더(존재 시) 우선 → 현재 노트/현재 연 폴더 순
   let targetFolder = null;
   if (tpl.folder && folders.some((f) => f.id === tpl.folder)) {
     targetFolder = tpl.folder;
+  } else if (applyToCurrent) {
+    targetFolder = cur.folder;
   } else {
     targetFolder = (currentFolder && currentFolder !== '__none__') ? currentFolder : null;
     if (!targetFolder && currentId) {
-      const cur = memos.find((m) => m.id === currentId);
-      if (cur && cur.folder) targetFolder = cur.folder;
+      const c = memos.find((m) => m.id === currentId);
+      if (c && c.folder) targetFolder = c.folder;
     }
   }
 
-  cleanupEmptyMemo();
-  // 새 메모 생성 후 템플릿 내용 적용
-  const memo = {
-    id: crypto.randomUUID(),
-    title: tpl.title,
-    content: tpl.content,
-    folder: targetFolder,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    favorite: false,
-  };
-  memos.unshift(memo);
-  currentId = memo.id;
+  let memo;
+  if (applyToCurrent) {
+    // 빈 새 노트에 그대로 적용 (별도 노트 생성하지 않음)
+    memo = cur;
+    memo.title = tpl.title;
+    memo.content = tpl.content;
+    memo.folder = targetFolder;
+    memo.updatedAt = Date.now();
+  } else {
+    cleanupEmptyMemo();
+    memo = {
+      id: crypto.randomUUID(),
+      title: tpl.title,
+      content: tpl.content,
+      folder: targetFolder,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      favorite: false,
+    };
+    memos.unshift(memo);
+    currentId = memo.id;
+  }
   saveLocalData();
   renderAll();
   showEditor(memo);
