@@ -1896,6 +1896,27 @@ function scheduleUndoSnapshot(memo) {
   undoIdleTimer = setTimeout(() => { undoGroupOpen = false; }, 1200);
 }
 
+// 옛 내용과 새 내용이 갈라지는 '바뀐 구간의 끝' 위치를 구한다 (되돌리기/되살리기 후 커서 이동용)
+function caretAfterChange(oldStr, newStr) {
+  const oldLen = oldStr.length, newLen = newStr.length;
+  let p = 0;
+  const maxP = Math.min(oldLen, newLen);
+  while (p < maxP && oldStr[p] === newStr[p]) p++; // 공통 앞부분
+  let s = 0;
+  const maxS = Math.min(oldLen, newLen) - p;
+  while (s < maxS && oldStr[oldLen - 1 - s] === newStr[newLen - 1 - s]) s++; // 공통 뒷부분
+  return newLen - s; // 새 내용에서 바뀐 구간의 끝
+}
+
+// 되돌리기/되살리기로 본문을 교체한 뒤, 바뀐 지점으로 커서를 옮기고 화면에 보이게 한다
+function restoreEditorContent(newContent) {
+  const caret = caretAfterChange(editor.value, newContent);
+  editor.value = newContent;
+  editor.focus();
+  editor.setSelectionRange(caret, caret);
+  $('#editor-highlight').scrollTop = editor.scrollTop; // 하이라이트 오버레이 스크롤 동기화
+}
+
 function performUndo() {
   if (undoStack.length === 0) {
     showToast('되돌릴 내용이 없습니다');
@@ -1913,7 +1934,7 @@ function performUndo() {
     prev = undoStack.pop();
   }
 
-  editor.value = prev;
+  restoreEditorContent(prev); // 본문 교체 + 바뀐 지점으로 커서 이동
   memo.content = prev;
   memo.updatedAt = Date.now();
   undoGroupOpen = false; // 되돌린 뒤 새 입력은 새 묶음으로
@@ -1938,7 +1959,7 @@ function performRedo() {
     next = redoStack.pop();
   }
 
-  editor.value = next;
+  restoreEditorContent(next); // 본문 교체 + 바뀐 지점으로 커서 이동
   memo.content = next;
   memo.updatedAt = Date.now();
   undoGroupOpen = false; // 되살린 뒤 새 입력은 새 묶음으로
