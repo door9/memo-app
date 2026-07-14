@@ -1,6 +1,6 @@
 // ── Config ──
 const DROPBOX_CLIENT_ID = '0kfnwj8hluxzpun';
-const DROPBOX_CLIENT_SECRET = 'x9tu1nql7ul9lqd';
+// PKCE(공개 클라이언트) 방식이므로 app secret은 코드에 두지 않는다 (공개 저장소 노출 방지)
 const DROPBOX_FILE = '/memo-app/memos.json';
 const BACKUP_DIR = '/memo-app/backups';
 const BACKUP_MAX = 30;
@@ -322,9 +322,8 @@ async function handleOAuthCallback() {
         code,
         grant_type: 'authorization_code',
         client_id: DROPBOX_CLIENT_ID,
-        client_secret: DROPBOX_CLIENT_SECRET,
         redirect_uri: REDIRECT_URI,
-        code_verifier: codeVerifier,
+        code_verifier: codeVerifier, // PKCE: secret 대신 code_verifier로 검증
       }),
     });
     if (!res.ok) throw new Error('token exchange failed: ' + res.status);
@@ -352,8 +351,7 @@ async function refreshAccessToken() {
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: DROPBOX_CLIENT_ID,
-        client_secret: DROPBOX_CLIENT_SECRET,
+        client_id: DROPBOX_CLIENT_ID, // PKCE 공개 클라이언트: secret 불필요
       }),
     });
     if (!res.ok) {
