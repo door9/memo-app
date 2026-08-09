@@ -376,6 +376,11 @@ html, body {
 .folder-actions-left.show,
 .folder-actions-right.show { display: flex; }
 
+/* PC(마우스): 폴더에 마우스를 올리면 순서변경(▲▼)·수정 등 아이콘이 나타남 */
+@media (hover: hover) {
+  .folder-item:hover .folder-actions-left { display: flex; }
+}
+
 .folder-item--child {
   padding-left: 32px;
 }

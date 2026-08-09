@@ -2758,16 +2758,14 @@ function renderFolderList() {
         return;
       }
 
-      // 메뉴가 보이는 상태(.show)일 때만 버튼 동작
-      const actionsVisible = el.querySelector('.folder-actions-left.show');
-      if (actionsVisible) {
-        if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
-        if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
-        if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
-        if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
-        if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
-        if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
-      }
+      // 액션 아이콘 클릭 (아이콘은 보일 때만 클릭되므로 .show 여부와 무관하게 처리
+      //  — PC는 마우스 오버(hover), 모바일은 길게 누르기로 아이콘이 나타남)
+      if (e.target.dataset.moveup) { moveFolderUp(e.target.dataset.moveup); return; }
+      if (e.target.dataset.movedown) { moveFolderDown(e.target.dataset.movedown); return; }
+      if (e.target.classList.contains('folder-edit')) { showRenameFolderDialog(e.target.dataset.edit); return; }
+      if (e.target.classList.contains('folder-lock')) { showSetPasswordDialog(e.target.dataset.lock); return; }
+      if (e.target.classList.contains('folder-moveto')) { showMoveFolderDialog(e.target.dataset.moveto); return; }
+      if (e.target.classList.contains('folder-dormant')) { toggleDormant(e.target.dataset.dormant); return; }
 
       const val = el.dataset.folder;
       if (val === '__all__') { currentFolder = null; }
