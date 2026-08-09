@@ -52,6 +52,18 @@ const emptyState = $('#empty-state');
 // ── Init ──
 document.addEventListener('DOMContentLoaded', init);
 
+// 저장소 자동 삭제(브라우저의 유휴 정리) 방지 요청 — 안드로이드/PC 크롬 등에서
+// 오래 안 써도 로그인·데이터가 지워지지 않도록 '영구 저장소'를 요청한다.
+async function requestPersistentStorage() {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      if (!(await navigator.storage.persisted())) {
+        await navigator.storage.persist();
+      }
+    }
+  } catch (e) {}
+}
+
 async function init() {
   // 모바일 세로 모드 고정
   try {
@@ -59,6 +71,8 @@ async function init() {
       screen.orientation.lock('portrait').catch(() => {});
     }
   } catch (e) {}
+
+  requestPersistentStorage(); // 저장소 유지 요청 (로그인이 오래 유지되도록)
 
   await handleOAuthCallback();
   loadLocalData();
@@ -1109,6 +1123,12 @@ function showFolderDialog() {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
+// 순서 변경 후에도 그 폴더의 액션 메뉴(▲▼…)를 열어둬 연속으로 옮길 수 있게 한다
+function reopenFolderActions(folderId) {
+  const row = folderList.querySelector(`.folder-item[data-folder="${folderId}"]`);
+  if (row) row.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.add('show'));
+}
+
 function moveFolderUp(folderId) {
   const siblings = getSiblingFolders(folderId);
   const idx = siblings.findIndex((f) => f.id === folderId);
@@ -1118,6 +1138,7 @@ function moveFolderUp(folderId) {
   siblings[idx - 1].sortOrder = temp;
   saveLocalData();
   renderAll();
+  reopenFolderActions(folderId);
   scheduleSyncToDropbox();
 }
 
@@ -1130,6 +1151,7 @@ function moveFolderDown(folderId) {
   siblings[idx + 1].sortOrder = temp;
   saveLocalData();
   renderAll();
+  reopenFolderActions(folderId);
   scheduleSyncToDropbox();
 }
 
