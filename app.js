@@ -2725,13 +2725,19 @@ function renderFolderList() {
     el.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
     el.addEventListener('touchmove', () => { clearTimeout(longPressTimer); });
 
-    // Right-click for PC: show action icons
+    // Right-click for PC: 액션 아이콘 토글 (같은 폴더 다시 우클릭하면 닫힘)
     el.addEventListener('contextmenu', (e) => {
       if (selectMode) return;
-      if (!el.querySelector('.folder-actions-left')) return;
+      const menu = el.querySelector('.folder-actions-left');
+      if (!menu) return;
       e.preventDefault();
+      const isOpen = menu.classList.contains('show');
+      // 다른 폴더의 열린 메뉴는 모두 닫기
       folderList.querySelectorAll('.folder-actions-left.show, .folder-actions-right.show').forEach((a) => a.classList.remove('show'));
-      el.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.toggle('show'));
+      // 닫혀 있었으면 열기 / 열려 있었으면 위에서 이미 닫혔으니 그대로 둠
+      if (!isOpen) {
+        el.querySelectorAll('.folder-actions-left, .folder-actions-right').forEach((a) => a.classList.add('show'));
+      }
     });
 
     el.addEventListener('click', (e) => {
