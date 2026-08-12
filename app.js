@@ -198,6 +198,13 @@ async function init() {
       editor.setSelectionRange(target, target);
       return;
     }
+    // Ctrl+↑ → 이전 문단 맨 앞으로 커서 이동
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'ArrowUp' && document.activeElement === editor) {
+      e.preventDefault();
+      const target = prevParagraphStart(editor.value, editor.selectionStart);
+      editor.setSelectionRange(target, target);
+      return;
+    }
     // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
     if (k === 'z' && !e.shiftKey && document.activeElement === editor) {
       e.preventDefault();
@@ -1772,6 +1779,31 @@ function nextParagraphStart(text, pos) {
   if (!isBlank(cur)) { while (j < lineStarts.length && !isBlank(j)) j++; } // 현재 문단의 남은 줄들 지나기
   while (j < lineStarts.length && isBlank(j)) j++;                          // 빈 줄들 지나기
   return (j < lineStarts.length) ? lineStarts[j] : text.length;            // 다음 문단 시작(없으면 문서 끝)
+}
+
+// 이전 문단(빈 줄로 구분된 블록)의 맨 앞 위치를 구한다 (Ctrl+↑ 용)
+function prevParagraphStart(text, pos) {
+  const lineStarts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\n') lineStarts.push(i + 1);
+  }
+  const isBlank = (idx) => {
+    if (idx < 0 || idx >= lineStarts.length) return true;
+    const s = lineStarts[idx];
+    const e = (idx + 1 < lineStarts.length) ? lineStarts[idx + 1] - 1 : text.length;
+    return /^[ \t]*$/.test(text.slice(s, e));
+  };
+  let cur = 0;
+  for (let k = 0; k < lineStarts.length; k++) {
+    if (lineStarts[k] <= pos) cur = k; else break;
+  }
+  let j = cur;
+  if (!isBlank(cur)) { while (j - 1 >= 0 && !isBlank(j - 1)) j--; } // 현재 문단의 첫 줄까지 위로
+  j--;                                                             // 그 위 줄로
+  while (j >= 0 && isBlank(j)) j--;                                // 빈 줄들 지나기
+  if (j < 0) return 0;                                             // 이전 문단 없음 -> 문서 처음
+  while (j - 1 >= 0 && !isBlank(j - 1)) j--;                       // 이전 문단의 첫 줄까지 위로
+  return lineStarts[j];
 }
 
 // 본문 커서 자리에 구분선 한 줄 삽입 (Alt+Shift+D=하이픈, Alt+Shift+E=등호)
