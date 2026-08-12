@@ -191,6 +191,13 @@ async function init() {
     }
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
+    // Ctrl+↓ → 다음 문단(빈 줄로 구분된 블록) 맨 앞으로 커서 이동 (기본 동작이 애매해서 직접 처리)
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'ArrowDown' && document.activeElement === editor) {
+      e.preventDefault();
+      const target = nextParagraphStart(editor.value, editor.selectionEnd);
+      editor.setSelectionRange(target, target);
+      return;
+    }
     // Ctrl+Z → 어절 단위 되돌리기 (에디터 포커스 시에만 가로채 브라우저 기본 동작 대체)
     if (k === 'z' && !e.shiftKey && document.activeElement === editor) {
       e.preventDefault();
@@ -1744,6 +1751,27 @@ function onTitleInput() {
   memo.updatedAt = Date.now();
   saveLocalData(); // localStorage는 즉시 저장
   scheduleRenderAndSync();
+}
+
+// 다음 문단(빈 줄로 구분된 블록)의 맨 앞 위치를 구한다 (Ctrl+↓ 용)
+function nextParagraphStart(text, pos) {
+  const lineStarts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\n') lineStarts.push(i + 1);
+  }
+  const isBlank = (idx) => {
+    const s = lineStarts[idx];
+    const e = (idx + 1 < lineStarts.length) ? lineStarts[idx + 1] - 1 : text.length;
+    return /^[ \t]*$/.test(text.slice(s, e));
+  };
+  let cur = 0;
+  for (let k = 0; k < lineStarts.length; k++) {
+    if (lineStarts[k] <= pos) cur = k; else break;
+  }
+  let j = cur + 1;
+  if (!isBlank(cur)) { while (j < lineStarts.length && !isBlank(j)) j++; } // 현재 문단의 남은 줄들 지나기
+  while (j < lineStarts.length && isBlank(j)) j++;                          // 빈 줄들 지나기
+  return (j < lineStarts.length) ? lineStarts[j] : text.length;            // 다음 문단 시작(없으면 문서 끝)
 }
 
 // 본문 커서 자리에 구분선 한 줄 삽입 (Alt+Shift+D=하이픈, Alt+Shift+E=등호)
