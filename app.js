@@ -191,7 +191,7 @@ async function init() {
     }
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
-    // Ctrl+↓ → 다음 문단(빈 줄로 구분된 블록) 맨 앞으로 커서 이동 (기본 동작이 애매해서 직접 처리)
+    // Ctrl+↓ → 다음 문단(엔터로 구분된 줄) 맨 앞으로 커서 이동 (기본 동작이 애매해서 직접 처리)
     if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'ArrowDown' && document.activeElement === editor) {
       e.preventDefault();
       const target = nextParagraphStart(editor.value, editor.selectionEnd);
@@ -1760,56 +1760,18 @@ function onTitleInput() {
   scheduleRenderAndSync();
 }
 
-// 다음 문단(빈 줄로 구분된 블록)의 맨 앞 위치를 구한다 (Ctrl+↓ 용)
+// Ctrl+↓ 용: 다음 줄(= 엔터로 구분된 다음 문단)의 맨 앞. 문단 = 엔터 한 번으로 구분된 줄.
 function nextParagraphStart(text, pos) {
-  const lineStarts = [0];
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '\n') lineStarts.push(i + 1);
-  }
-  const isBlank = (idx) => {
-    const s = lineStarts[idx];
-    const e = (idx + 1 < lineStarts.length) ? lineStarts[idx + 1] - 1 : text.length;
-    return /^[ \t]*$/.test(text.slice(s, e));
-  };
-  let cur = 0;
-  for (let k = 0; k < lineStarts.length; k++) {
-    if (lineStarts[k] <= pos) cur = k; else break;
-  }
-  let j = cur + 1;
-  if (!isBlank(cur)) { while (j < lineStarts.length && !isBlank(j)) j++; } // 현재 문단의 남은 줄들 지나기
-  while (j < lineStarts.length && isBlank(j)) j++;                          // 빈 줄들 지나기
-  return (j < lineStarts.length) ? lineStarts[j] : text.length;            // 다음 문단 시작(없으면 문서 끝)
+  const nl = text.indexOf('\n', pos);
+  return (nl === -1) ? text.length : nl + 1; // 다음 줄 시작(없으면 문서 끝)
 }
 
-// Ctrl+↑ 용: 문단 중간이면 그 문단 맨 앞으로, 이미 문단 맨 앞이면 이전 문단 맨 앞으로
+// Ctrl+↑ 용: 줄 중간이면 그 줄(= 문단) 맨 앞으로, 이미 줄 맨 앞이면 이전 줄 맨 앞으로.
 function prevParagraphStart(text, pos) {
-  const lineStarts = [0];
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '\n') lineStarts.push(i + 1);
-  }
-  const isBlank = (idx) => {
-    if (idx < 0 || idx >= lineStarts.length) return true;
-    const s = lineStarts[idx];
-    const e = (idx + 1 < lineStarts.length) ? lineStarts[idx + 1] - 1 : text.length;
-    return /^[ \t]*$/.test(text.slice(s, e));
-  };
-  let cur = 0;
-  for (let k = 0; k < lineStarts.length; k++) {
-    if (lineStarts[k] <= pos) cur = k; else break;
-  }
-  // 현재 줄이 내용 있는 문단이면: 문단 맨 앞보다 뒤에 있을 때 먼저 문단 맨 앞으로
-  if (!isBlank(cur)) {
-    let first = cur;
-    while (first - 1 >= 0 && !isBlank(first - 1)) first--; // 현재 문단의 첫 줄
-    if (pos > lineStarts[first]) return lineStarts[first]; // 문단 중간/끝 → 문단 첫 부분
-    cur = first;                                           // 이미 문단 맨 앞 → 이전 문단 찾기
-  }
-  // 이전 문단 맨 앞 찾기 (빈 줄에 있거나, 문단 맨 앞에서 한 번 더 누른 경우)
-  let j = cur - 1;
-  while (j >= 0 && isBlank(j)) j--;                        // 위쪽 빈 줄 건너뛰기
-  if (j < 0) return 0;                                     // 이전 문단 없음 → 문서 처음
-  while (j - 1 >= 0 && !isBlank(j - 1)) j--;               // 이전 문단의 첫 줄까지 위로
-  return lineStarts[j];
+  const lineStart = text.lastIndexOf('\n', pos - 1) + 1; // 현재 줄 시작 (없으면 0)
+  if (pos > lineStart) return lineStart;                 // 줄 중간/끝 → 그 줄 맨 앞
+  if (lineStart === 0) return 0;                         // 첫 줄 → 그대로
+  return text.lastIndexOf('\n', lineStart - 2) + 1;      // 이미 줄 맨 앞 → 이전 줄 맨 앞
 }
 
 // 본문 커서 자리에 구분선 한 줄 삽입 (Alt+Shift+D=하이픈, Alt+Shift+E=등호)
