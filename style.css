@@ -794,11 +794,11 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
   z-index: 0;
 }
 
-/* 형광펜(user)·찾기결과(search)는 노란색, 찾기 '현재' 위치(search-current)만 주황색 */
+/* 형광펜(user)·찾기결과(search)는 옅은 형광 노랑, 찾기 '현재' 위치(search-current)만 주황색 */
 #editor-highlight mark.user,
 #editor-highlight mark.search,
 #editor-highlight mark.search-current {
-  background: #ffe066;
+  background: #f0f87a;
   color: transparent;
   border-radius: 2px;
 }

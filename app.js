@@ -2259,7 +2259,7 @@ function toggleHighlight() {
   saveLocalData();
   scheduleRenderAndSync();
   editor.focus();
-  editor.setSelectionRange(start, end); // 선택 유지
+  editor.setSelectionRange(end, end); // 선택(블록) 해제 — 커서만 칠한 부분 끝으로
 }
 
 // 찾기 표시가 켜져 있는지
