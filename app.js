@@ -189,6 +189,12 @@ async function init() {
       insertTextAtCursor(formatDateStamp(e.shiftKey));
       return;
     }
+    // Alt+H → 선택 영역 형광펜(하이라이트) 켜기/끄기 (본문 포커스 시). 앱 안에서만 보이는 표시.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyH' && document.activeElement === editor) {
+      e.preventDefault();
+      toggleHighlight();
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey)) return;
     const k = e.key.toLowerCase();
     // Ctrl+↓ → 다음 문단(엔터로 구분된 줄) 맨 앞으로 커서 이동 (기본 동작이 애매해서 직접 처리)
@@ -1544,6 +1550,7 @@ function onExternalStorageChange(e) {
     if (titleInput.value !== memo.title) titleInput.value = memo.title;
     updateCharCount();
     updateFavButton(memo);
+    repaintOverlay(); // 다른 창에서 바뀐 형광펜 반영
   }
   updateMemoDates(memo);
 }
@@ -1570,6 +1577,9 @@ function showEditor(memo) {
   $('#btn-toolbar-more').classList.remove('active');
   $('#toolbar-right').classList.remove('expanded');
   $('#toolbar-buttons').classList.remove('expanded');
+  // 이전 글에서 쓰던 찾기 표시 초기화 후, 이 글의 형광펜을 오버레이에 그림
+  searchKeyword = ''; searchCurrentPos = -1; findMatches = []; findIndex = -1; findAllMode = false;
+  repaintOverlay();
 }
 
 function hideEditor() {
@@ -1721,6 +1731,7 @@ function createOfflineCopy(memo) {
     title,
     content: memo.content,
     folder: memo.folder,
+    highlights: memo.highlights ? memo.highlights.map((h) => ({ start: h.start, end: h.end })) : undefined,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -1741,9 +1752,14 @@ function onEditorInput() {
     memo = createOfflineCopy(memo);
   }
   scheduleUndoSnapshot(memo);
+  // 편집으로 글자 위치가 밀리면 형광펜 위치도 함께 보정
+  if (memo.highlights && memo.highlights.length) {
+    memo.highlights = adjustHighlights(memo.content, editor.value, memo.highlights);
+  }
   memo.content = editor.value;
   memo.updatedAt = Date.now();
   updateCharCount();
+  repaintOverlay();
   saveLocalData(); // localStorage는 즉시 저장 (탭 닫혀도 보존)
   scheduleRenderAndSync();
 }
@@ -1982,11 +1998,14 @@ function performUndo() {
     prev = undoStack.pop();
   }
 
+  const beforeUndo = editor.value;
   restoreEditorContent(prev); // 본문 교체 + 바뀐 지점으로 커서 이동
+  if (memo.highlights && memo.highlights.length) memo.highlights = adjustHighlights(beforeUndo, prev, memo.highlights);
   memo.content = prev;
   memo.updatedAt = Date.now();
   undoGroupOpen = false; // 되돌린 뒤 새 입력은 새 묶음으로
   updateCharCount();
+  repaintOverlay();
   scheduleAutoSave();
   showToast('되돌리기 완료');
 }
@@ -2007,11 +2026,14 @@ function performRedo() {
     next = redoStack.pop();
   }
 
+  const beforeRedo = editor.value;
   restoreEditorContent(next); // 본문 교체 + 바뀐 지점으로 커서 이동
+  if (memo.highlights && memo.highlights.length) memo.highlights = adjustHighlights(beforeRedo, next, memo.highlights);
   memo.content = next;
   memo.updatedAt = Date.now();
   undoGroupOpen = false; // 되살린 뒤 새 입력은 새 묶음으로
   updateCharCount();
+  repaintOverlay();
   scheduleAutoSave();
   showToast('되살리기 완료');
 }
@@ -2063,6 +2085,7 @@ function showHelpDialog() {
           <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> 되살리기</li>
           <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> 구분선 ------ · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> 구분선 ======</li>
           <li><kbd>Alt</kbd>+<kbd>;</kbd> 날짜 입력 · <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>;</kbd> 날짜+시간 입력</li>
+          <li><kbd>Alt</kbd>+<kbd>H</kbd> 선택 부분 형광펜(하이라이트) 켜기/끄기</li>
         </ul>
         <p class="help-h">🗂️ 폴더·정리</p>
         <ul>
@@ -2073,6 +2096,7 @@ function showHelpDialog() {
         <p class="help-h">📝 작성·보기</p>
         <ul>
           <li>📄 템플릿 저장·불러오기 · 📋 본문만 복사 · 📖 읽기 전용 보기</li>
+          <li>형광펜(<kbd>Alt</kbd>+<kbd>H</kbd>)은 앱 안에서만 보이는 표시예요 — 복사·붙여넣기하면 순수 글자만 오갑니다</li>
           <li>글 목록에서 <b>더블클릭</b>하면 새 창으로 열립니다</li>
         </ul>
         <p class="help-h">💾 저장·백업·보안</p>
@@ -2094,6 +2118,8 @@ function showHelpDialog() {
 let findMatches = [];
 let findIndex = -1;
 let findAllMode = false;
+let searchKeyword = '';      // 찾기 중인 단어 (없으면 '')
+let searchCurrentPos = -1;   // 찾기에서 '현재' 위치 (주황 표시)
 
 function toggleFindReplace() {
   const bar = $('#find-replace-bar');
@@ -2134,25 +2160,169 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function updateHighlight(keyword) {
-  const hl = $('#editor-highlight');
-  if (!keyword || findMatches.length === 0) { hl.innerHTML = ''; return; }
-  const text = editor.value;
-  const keyLen = keyword.length;
-  let result = '';
-  let lastEnd = 0;
-  for (const pos of findMatches) {
-    result += escHtml(text.substring(lastEnd, pos));
-    result += '<mark>' + escHtml(text.substring(pos, pos + keyLen)) + '</mark>';
-    lastEnd = pos + keyLen;
+// ── 형광펜(하이라이트) ──
+// 본문은 순수 텍스트 그대로 두고(=복사·붙여넣기·검색·기존 노트 100% 그대로),
+// '어디에 색을 칠할지'만 memo.highlights = [{start,end}, ...]에 별도로 저장한다.
+// 화면 표시는 본문 textarea 뒤의 오버레이(#editor-highlight)에 배경색으로만 그린다.
+
+// 범위 목록 정규화: 정렬 + 겹치거나 맞닿은 범위 병합 + 빈 범위 제거
+function normalizeHighlights(list) {
+  const arr = (list || [])
+    .map((h) => ({ start: Math.max(0, h.start | 0), end: h.end | 0 }))
+    .filter((h) => h.end > h.start)
+    .sort((a, b) => a.start - b.start);
+  const out = [];
+  for (const h of arr) {
+    const last = out[out.length - 1];
+    if (last && h.start <= last.end) last.end = Math.max(last.end, h.end);
+    else out.push({ start: h.start, end: h.end });
   }
-  result += escHtml(text.substring(lastEnd)) + '\n';
-  hl.innerHTML = result;
+  return out;
+}
+
+function addHighlightRange(list, s, e) {
+  return normalizeHighlights([...(list || []), { start: s, end: e }]);
+}
+
+function removeHighlightRange(list, s, e) {
+  const out = [];
+  for (const h of (list || [])) {
+    if (h.end <= s || h.start >= e) { out.push(h); continue; } // 겹치지 않음 → 그대로
+    if (h.start < s) out.push({ start: h.start, end: s });      // 왼쪽 조각 남김
+    if (h.end > e) out.push({ start: e, end: h.end });          // 오른쪽 조각 남김
+  }
+  return normalizeHighlights(out);
+}
+
+// [s,e)가 통째로 칠해져 있는가 (하나의 병합 범위가 완전히 감싸면 true)
+function isRangeFullyHighlighted(list, s, e) {
+  for (const h of normalizeHighlights(list)) {
+    if (h.start <= s && h.end >= e) return true;
+  }
+  return false;
+}
+
+// 옛/새 텍스트가 갈라지는 구간을 찾는다 (편집으로 밀린 형광펜 위치 보정용)
+function diffRange(oldStr, newStr) {
+  const oldLen = oldStr.length, newLen = newStr.length;
+  let p = 0;
+  const maxP = Math.min(oldLen, newLen);
+  while (p < maxP && oldStr[p] === newStr[p]) p++;
+  let s = 0;
+  const maxS = Math.min(oldLen, newLen) - p;
+  while (s < maxS && oldStr[oldLen - 1 - s] === newStr[newLen - 1 - s]) s++;
+  return { p, oldEnd: oldLen - s, newEnd: newLen - s };
+}
+
+// 본문이 old→new로 바뀌었을 때, 형광펜 범위들을 새 좌표로 옮긴다
+function adjustHighlights(oldText, newText, hls) {
+  if (!hls || hls.length === 0) return hls || [];
+  const { p, oldEnd, newEnd } = diffRange(oldText, newText);
+  if (p === oldEnd && p === newEnd) return hls; // 변화 없음
+  const delta = newEnd - oldEnd;
+  const pureInsert = oldEnd === p; // 삭제 없이 삽입만 일어난 경우
+  const out = [];
+  for (const h of hls) {
+    const a = h.start, b = h.end;
+    if (b <= p) { out.push({ start: a, end: b }); continue; }                       // 변경 구간보다 앞 → 그대로
+    if (a >= oldEnd) { out.push({ start: a + delta, end: b + delta }); continue; }  // 뒤 → 통째로 이동
+    if (pureInsert) {
+      // 삽입 지점이 형광펜 안쪽 → 삽입된 글자도 형광펜에 포함되게 늘림
+      out.push({ start: a, end: b + delta });
+      continue;
+    }
+    // 삭제/교체가 형광펜과 겹침 → 손대지 않은 양옆만 남기고 가운데는 해제
+    const leftEnd = Math.min(b, p);
+    if (leftEnd > a) out.push({ start: a, end: leftEnd });
+    const rightStart = Math.max(a, oldEnd);
+    if (b > rightStart) out.push({ start: rightStart + delta, end: b + delta });
+  }
+  return normalizeHighlights(out);
+}
+
+// Alt+H: 선택 영역 형광펜 켜기/끄기 (이미 전부 칠해져 있으면 지움)
+function toggleHighlight() {
+  if (viewerMode) return;
+  if (document.activeElement !== editor) return;
+  const memo = memos.find((m) => m.id === currentId);
+  if (!memo) return;
+  const start = editor.selectionStart, end = editor.selectionEnd;
+  if (start === end) { showToast('형광펜을 칠할 부분을 먼저 선택하세요'); return; }
+  const cur = memo.highlights || [];
+  if (isRangeFullyHighlighted(cur, start, end)) {
+    memo.highlights = removeHighlightRange(cur, start, end);
+  } else {
+    memo.highlights = addHighlightRange(cur, start, end);
+  }
+  memo.updatedAt = Date.now();
+  repaintOverlay();
+  saveLocalData();
+  scheduleRenderAndSync();
+  editor.focus();
+  editor.setSelectionRange(start, end); // 선택 유지
+}
+
+// 찾기 표시가 켜져 있는지
+function searchActive() {
+  return searchKeyword !== '' && findMatches.length > 0;
+}
+
+// 오버레이(형광펜 + 찾기 결과)를 현재 상태대로 다시 그린다
+function repaintOverlay() {
+  const hl = $('#editor-highlight');
+  if (!hl) return;
+  const memo = memos.find((m) => m.id === currentId);
+  const userH = (memo && memo.highlights) ? memo.highlights : [];
+  const marks = [];
+  for (const h of userH) marks.push({ start: h.start, end: h.end, cls: 'user' });
+  if (searchActive()) {
+    const kl = searchKeyword.length;
+    for (const pos of findMatches) {
+      const cls = (!findAllMode && pos === searchCurrentPos) ? 'search-current' : 'search';
+      marks.push({ start: pos, end: pos + kl, cls });
+    }
+  }
+  if (marks.length === 0) { hl.innerHTML = ''; return; } // 표시할 게 없으면 비움(성능)
+  hl.innerHTML = renderMarks(editor.value, marks);
   hl.scrollTop = editor.scrollTop;
 }
 
+// 겹칠 수 있는 표시들을 우선순위(현재 찾기 > 찾기 > 형광펜)로 합쳐 <mark> HTML 생성
+function renderMarks(text, marks) {
+  const n = text.length;
+  const prio = { user: 1, search: 2, 'search-current': 3 };
+  const pts = new Set([0, n]);
+  for (const m of marks) {
+    if (m.start > 0 && m.start < n) pts.add(m.start);
+    if (m.end > 0 && m.end < n) pts.add(m.end);
+  }
+  const xs = Array.from(pts).sort((a, b) => a - b);
+  let out = '';
+  for (let i = 0; i < xs.length - 1; i++) {
+    const a = xs[i], b = xs[i + 1];
+    let best = null, bestP = 0;
+    for (const m of marks) {
+      if (m.start <= a && m.end >= b) {
+        const pr = prio[m.cls] || 0;
+        if (pr > bestP) { bestP = pr; best = m.cls; }
+      }
+    }
+    const seg = escHtml(text.slice(a, b));
+    out += best ? '<mark class="' + best + '">' + seg + '</mark>' : seg;
+  }
+  return out + '\n';
+}
+
+function updateHighlight(keyword) {
+  searchKeyword = keyword || '';
+  searchCurrentPos = -1;
+  repaintOverlay();
+}
+
 function clearHighlight() {
-  $('#editor-highlight').innerHTML = '';
+  searchKeyword = '';
+  searchCurrentPos = -1;
+  repaintOverlay(); // 찾기 표시만 지우고 형광펜은 다시 보이게
 }
 
 function findAndGo() {
@@ -2190,20 +2360,9 @@ function findNavigate(dir) {
 }
 
 function highlightAllWithCurrent(keyword, currentPos) {
-  const hl = $('#editor-highlight');
-  const text = editor.value;
-  const keyLen = keyword.length;
-  let result = '';
-  let lastEnd = 0;
-  for (const pos of findMatches) {
-    result += escHtml(text.substring(lastEnd, pos));
-    const cls = pos === currentPos ? 'current' : '';
-    result += '<mark class="' + cls + '">' + escHtml(text.substring(pos, pos + keyLen)) + '</mark>';
-    lastEnd = pos + keyLen;
-  }
-  result += escHtml(text.substring(lastEnd)) + '\n';
-  hl.innerHTML = result;
-  hl.scrollTop = editor.scrollTop;
+  searchKeyword = keyword || '';
+  searchCurrentPos = currentPos;
+  repaintOverlay();
 }
 
 function scrollEditorToPos(pos) {
@@ -2352,6 +2511,7 @@ function replaceAction() {
   const keyword = $('#find-input').value;
   const replacement = $('#replace-input').value;
   if (!keyword || findMatches.length === 0) return;
+  const oldContent = editor.value; // 형광펜 위치 보정용(교체 전 본문)
 
   if (findAllMode) {
     // 모두 찾기 상태 → 전체 바꾸기
@@ -2360,7 +2520,10 @@ function replaceAction() {
     if (count === 0) return;
     editor.value = editor.value.replace(regex, replacement);
     const memo = memos.find((m) => m.id === currentId);
-    if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+    if (memo) {
+      if (memo.highlights && memo.highlights.length) memo.highlights = adjustHighlights(oldContent, editor.value, memo.highlights);
+      memo.content = editor.value; memo.updatedAt = Date.now();
+    }
     saveLocalData();
     scheduleSyncToDropbox();
     updateCharCount();
@@ -2378,7 +2541,10 @@ function replaceAction() {
     const after = editor.value.substring(pos + keyword.length);
     editor.value = before + replacement + after;
     const memo = memos.find((m) => m.id === currentId);
-    if (memo) { memo.content = editor.value; memo.updatedAt = Date.now(); }
+    if (memo) {
+      if (memo.highlights && memo.highlights.length) memo.highlights = adjustHighlights(oldContent, editor.value, memo.highlights);
+      memo.content = editor.value; memo.updatedAt = Date.now();
+    }
     saveLocalData();
     scheduleSyncToDropbox();
     updateCharCount();

@@ -794,13 +794,16 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
   z-index: 0;
 }
 
-#editor-highlight mark {
+/* 형광펜(user)·찾기결과(search)는 노란색, 찾기 '현재' 위치(search-current)만 주황색 */
+#editor-highlight mark.user,
+#editor-highlight mark.search,
+#editor-highlight mark.search-current {
   background: #ffe066;
   color: transparent;
   border-radius: 2px;
 }
 
-#editor-highlight mark.current {
+#editor-highlight mark.search-current {
   background: #ff9632;
 }
 
@@ -822,7 +825,7 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
 }
 
 #editor.viewer {
-  background: var(--bg);
+  background: transparent; /* 뒤 오버레이의 형광펜이 읽기 모드에서도 보이도록 투명 유지 */
   cursor: default;
   user-select: text;
 }
