@@ -2573,7 +2573,7 @@ function shareMemo() {
   if (!memo) return;
   const text = (memo.title ? memo.title + '\n\n' : '') + memo.content;
   if (navigator.share) {
-    navigator.share({ title: memo.title || 'Moon\'s Notes', text }).catch(() => {});
+    navigator.share({ title: memo.title || 'Project Papers', text }).catch(() => {});
   } else {
     // Web Share API 미지원 시 클립보드 복사 대체
     navigator.clipboard.writeText(text).then(() => {
