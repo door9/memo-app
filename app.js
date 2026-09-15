@@ -1521,15 +1521,14 @@ function toggleFavorite() {
   showToast(memo.favorite ? '즐겨찾기에 추가됨' : '즐겨찾기 해제됨');
 }
 
+// 선 아이콘 한 개(index.html 맨 위 아이콘 모음의 id="i-이름")
+function ico(name) {
+  return `<svg class="ico" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
 function updateFavButton(memo) {
-  const btn = $('#btn-fav');
-  if (memo && memo.favorite) {
-    btn.textContent = '★';
-    btn.classList.add('fav-active');
-  } else {
-    btn.textContent = '☆';
-    btn.classList.remove('fav-active');
-  }
+  // 별 모양은 그대로, 켜짐(★)은 CSS .fav-active 가 속을 채운다
+  $('#btn-fav').classList.toggle('fav-active', !!(memo && memo.favorite));
 }
 
 // 다른 창(같은 기기)에서 localStorage가 바뀌면 호출 → 이 창을 최신 상태로 갱신
@@ -2089,20 +2088,20 @@ function showHelpDialog() {
         </ul>
         <p class="help-h">🗂️ 폴더·정리</p>
         <ul>
-          <li>📁 현재 글을 폴더에 지정 — 빈 글도 폴더를 정하면 사라지지 않습니다</li>
-          <li>⋮ 더보기에서 즐겨찾기(☆)·삭제(🗑)</li>
-          <li>☑ 선택 모드로 여러 글을 한 번에 이동·삭제</li>
+          <li>${ico('folder')} 현재 글을 폴더에 지정 — 빈 글도 폴더를 정하면 사라지지 않습니다</li>
+          <li>${ico('more')} 더보기에서 즐겨찾기(${ico('star')})·삭제(${ico('trash')})</li>
+          <li>${ico('select')} 선택 모드로 여러 글을 한 번에 이동·삭제</li>
         </ul>
         <p class="help-h">📝 작성·보기</p>
         <ul>
-          <li>📄 템플릿 저장·불러오기 · <svg class="ico-copy" viewBox="0 0 24 24" width="1.2em" height="1.2em" aria-hidden="true"><rect x="8.5" y="3" width="11.5" height="14.5" rx="1.5"/><path d="M5 7v12.5q0 1.5 1.5 1.5H16"/></svg> 본문만 복사 · 📖 읽기 전용 보기</li>
+          <li>${ico('template')} 템플릿 저장·불러오기 · ${ico('copy')} 본문만 복사 · ${ico('book')} 읽기 전용 보기</li>
           <li>형광펜(<kbd>Alt</kbd>+<kbd>H</kbd>)은 앱 안에서만 보이는 표시예요 — 복사·붙여넣기하면 순수 글자만 오갑니다</li>
           <li>글 목록에서 <b>더블클릭</b>하면 새 창으로 열립니다</li>
         </ul>
         <p class="help-h">💾 저장·백업·보안</p>
         <ul>
           <li>입력하면 자동 저장·자동 동기화 (최근 시각은 왼쪽 위에 표시)</li>
-          <li>💾 수동 백업 · 매일 자동 백업 · 🗑 휴지통에서 복원</li>
+          <li>${ico('save')} 수동 백업 · 매일 자동 백업 · ${ico('trash')} 휴지통에서 복원</li>
           <li>폴더에 비밀번호 설정 가능 (Master로 전체 해제)</li>
         </ul>
       </div>
@@ -2740,8 +2739,7 @@ function toggleFolderListCollapse() {
 function toggleFavFilter() {
   favFilterActive = !favFilterActive;
   const btn = $('#btn-fav-filter');
-  btn.classList.toggle('active', favFilterActive);
-  btn.textContent = favFilterActive ? '★' : '☆';
+  btn.classList.toggle('active', favFilterActive); // 켜지면 CSS 가 별 속을 채운다
   renderMemoList();
 }
 
@@ -2753,14 +2751,14 @@ function updateFolderToggleLabel() {
     const f = folders.find((f) => f.id === currentFolder);
     if (f) label = f.name;
   }
-  btn.textContent = '📁 ' + label;
+  btn.innerHTML = ico('folder') + ' ' + escapeHtml(label);
 }
 
 function renderFolderItem(f, isChild) {
   const count = isChild ? memos.filter((m) => m.folder === f.id && isVisibleMemo(m)).length : getFolderMemoCount(f.id);
-  const lockIcon = f.password ? (unlockedFolders.has(f.id) ? '🔓' : '🔒') : '';
+  const lockIcon = f.password ? ico(unlockedFolders.has(f.id) ? 'unlock' : 'lock') : '';
   const childClass = isChild ? ' folder-item--child' : '';
-  const dormantIcon = (!isChild) ? `<span class="folder-dormant" data-dormant="${f.id}" title="${f.dormant ? '휴면 해제' : '휴면 처리'}">${f.dormant ? '☀️' : '💤'}</span>` : '';
+  const dormantIcon = (!isChild) ? `<span class="folder-dormant" data-dormant="${f.id}" title="${f.dormant ? '휴면 해제' : '휴면 처리'}">${ico(f.dormant ? 'sun' : 'moon')}</span>` : '';
   const folderCheckbox = selectMode ? `<input type="checkbox" class="folder-item-checkbox" data-folder-check="${f.id}"${selectedFolders.has(f.id) ? ' checked' : ''}>` : '';
   return `<div class="folder-item${childClass} ${currentFolder === f.id ? 'active' : ''}" data-folder="${f.id}">
     ${folderCheckbox}
@@ -2768,9 +2766,9 @@ function renderFolderItem(f, isChild) {
     <span class="folder-actions-left">
       <span class="folder-move" data-moveup="${f.id}" title="위로">▲</span>
       <span class="folder-move" data-movedown="${f.id}" title="아래로">▼</span>
-      <span class="folder-edit" data-edit="${f.id}" title="이름 수정">✏️</span>
-      <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">🔑</span>
-      <span class="folder-moveto" data-moveto="${f.id}" title="폴더 이동">📂</span>
+      <span class="folder-edit" data-edit="${f.id}" title="이름 수정">${ico('edit')}</span>
+      <span class="folder-lock" data-lock="${f.id}" title="비밀번호 설정">${ico('key')}</span>
+      <span class="folder-moveto" data-moveto="${f.id}" title="폴더 이동">${ico('folder-move')}</span>
       ${dormantIcon}
     </span>
     <span class="folder-actions-right">
@@ -2815,7 +2813,7 @@ function renderFolderList() {
   if (dormantTopFolders.length > 0) {
     const dormantMemoCount = memos.filter((m) => dormantIds.has(m.folder) && isVisibleMemo(m)).length;
     html += `<div class="folder-dormant-toggle" id="dormant-toggle">
-      <span>💤 휴면 폴더 <span class="folder-count">(${dormantMemoCount})</span></span>
+      <span>${ico('moon')} 휴면 폴더 <span class="folder-count">(${dormantMemoCount})</span></span>
       <span class="dormant-arrow">▶</span>
     </div>`;
     html += `<div class="folder-dormant-list" id="dormant-list" style="display:none;">`;

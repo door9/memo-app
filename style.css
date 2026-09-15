@@ -767,8 +767,15 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
   font-size: 1rem;
 }
 .btn-icon:hover { background: var(--bg2); }
-/* 복사 아이콘: 앞 종이 + 뒤에 겹친 종이의 ㄴ자 모서리 (템플릿 📄 과 헷갈리지 않게) */
-.ico-copy { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; vertical-align: -0.25em; }
+/* 선 아이콘 공통 (index.html 맨 위 아이콘 모음). 선 굵기는 모두 1.4 로 통일 */
+.ico { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; vertical-align: -0.25em; flex-shrink: 0; }
+.btn-icon .ico, #menu-toggle .ico { width: 20px; height: 20px; }
+.btn-backup .ico { width: 17px; height: 17px; display: block; }
+.btn-search-key .ico { width: 15px; height: 15px; display: block; }
+.btn-fav-filter .ico, .btn-select-mode .ico { width: 16px; height: 16px; display: block; }
+.folder-item-name .ico { width: 1em; height: 1em; vertical-align: -0.12em; }
+/* 즐겨찾기 켜짐(★): 별 속을 채운다 */
+.btn-icon.fav-active .ico, .btn-fav-filter.active .ico { fill: currentColor; }
 .btn-icon.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn-icon.fav-active { color: #e6a817; background: var(--bg); border-color: var(--border); }
 
