@@ -767,8 +767,8 @@ body.toolbar-hidden #toolbar-reveal { display: flex; align-items: center; justif
   font-size: 1rem;
 }
 .btn-icon:hover { background: var(--bg2); }
-/* 복사 아이콘: 같은 문서 2장이 나란히 (템플릿 📄 과 헷갈리지 않게) */
-.ico-copy { fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linejoin: round; stroke-linecap: round; vertical-align: -0.25em; }
+/* 복사 아이콘: 앞 종이 + 뒤에 겹친 종이의 ㄴ자 모서리 (템플릿 📄 과 헷갈리지 않게) */
+.ico-copy { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; vertical-align: -0.25em; }
 .btn-icon.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn-icon.fav-active { color: #e6a817; background: var(--bg); border-color: var(--border); }
 
