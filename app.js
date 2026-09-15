@@ -2095,7 +2095,7 @@ function showHelpDialog() {
         </ul>
         <p class="help-h">📝 작성·보기</p>
         <ul>
-          <li>📄 템플릿 저장·불러오기 · 📋 본문만 복사 · 📖 읽기 전용 보기</li>
+          <li>📄 템플릿 저장·불러오기 · <svg class="ico-copy" viewBox="0 0 24 24" width="1.2em" height="1.2em" aria-hidden="true"><path d="M2 5h6l3 3v11H2z M8 5v3h3 M4 11h5 M4 14h5 M4 17h3"/><path d="M13 5h6l3 3v11h-9z M19 5v3h3 M15 11h5 M15 14h5 M15 17h3"/></svg> 본문만 복사 · 📖 읽기 전용 보기</li>
           <li>형광펜(<kbd>Alt</kbd>+<kbd>H</kbd>)은 앱 안에서만 보이는 표시예요 — 복사·붙여넣기하면 순수 글자만 오갑니다</li>
           <li>글 목록에서 <b>더블클릭</b>하면 새 창으로 열립니다</li>
         </ul>
